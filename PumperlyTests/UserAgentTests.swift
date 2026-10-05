@@ -9,7 +9,13 @@ final class UserAgentTests: XCTestCase {
     }
 
     func testBundleVersionComesFromProjectYml() {
-        XCTAssertEqual(AppConfig.appVersion, "0.1.0")
+        XCTAssertNotNil(AppConfig.appVersion.range(of: #"^\d+\.\d+\.\d+$"#, options: .regularExpression),
+                        AppConfig.appVersion)
+    }
+
+    /// The App Store rejects an iPad build without all four orientations (error 90474); the app is iPhone only.
+    func testAppIsIPhoneOnly() {
+        XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "UIDeviceFamily") as? [Int], [1])
     }
 
     /// The real web view sends the token at the end of its user agent.

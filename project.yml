@@ -12,8 +12,8 @@ options:
 settings:
   base:
     # Version and build number live only here. Bump CURRENT_PROJECT_VERSION for every TestFlight upload.
-    MARKETING_VERSION: 0.1.0
-    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.1
+    CURRENT_PROJECT_VERSION: 2
     DEVELOPMENT_TEAM: 624WUVM8B4
     SWIFT_VERSION: "5.0"
     TARGETED_DEVICE_FAMILY: "1"
@@ -69,6 +69,9 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.pumperly.app
+        # iPhone only. Set per target: XcodeGen's target default ("1,2") overrides the project-level value,
+        # and an iPad build must support all four orientations or App Store upload fails (error 90474).
+        TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
@@ -105,6 +108,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.pumperly.app.widget
+        TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
         SKIP_INSTALL: YES
       configs:
