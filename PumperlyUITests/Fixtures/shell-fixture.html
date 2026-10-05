@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pumperly fixture</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; margin: 0; padding: 48px 24px; }
+    h1 { color: #059669; }
+  </style>
+</head>
+<body>
+  <h1>Pumperly fixture loaded</h1>
+  <p id="ua"></p>
+  <p id="geo"></p>
+  <script>
+    document.getElementById("ua").textContent =
+      /PumperlyiOS\/\d/.test(navigator.userAgent) ? "User agent has the app token" : "User agent token missing";
+    document.getElementById("geo").textContent =
+      window.__pumperlyGeo ? "Location bridge ready" : "Location bridge missing";
+  </script>
+</body>
+</html>

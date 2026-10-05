@@ -1,0 +1,54 @@
+/* Fuel types, as the site names them */
+"fuel.B7" = "Diesel";
+"fuel.B7_PREMIUM" = "Premium diesel";
+"fuel.B10" = "Diesel B10";
+"fuel.B_AGRICULTURAL" = "Agricultural diesel (B)";
+"fuel.HVO" = "Renewable diesel (HVO)";
+"fuel.E5" = "Petrol 95";
+"fuel.E5_PREMIUM" = "Premium petrol 95";
+"fuel.E10" = "Petrol 95 E10";
+"fuel.E5_98" = "Petrol 98";
+"fuel.E98_E10" = "Petrol 98 E10";
+"fuel.LPG" = "LPG / Autogas";
+"fuel.CNG" = "CNG";
+"fuel.LNG" = "LNG";
+"fuel.H2" = "Hydrogen";
+"fuel.EV" = "EV charging";
+"fuel.ADBLUE" = "AdBlue";
+
+"fuel.category.diesel" = "Diesel";
+"fuel.category.gasoline" = "Petrol";
+"fuel.category.gas" = "Gas";
+"fuel.category.hydrogen" = "Hydrogen";
+"fuel.category.electric" = "Electric";
+"fuel.category.other" = "Other";
+
+/* Widget */
+"widget.title" = "Cheapest nearby";
+"widget.description" = "The cheapest stations near you for your fuel.";
+"widget.needsLocation" = "Open Pumperly and allow location to see stations near you.";
+"widget.empty" = "No stations with this fuel within 10 km.";
+"widget.unavailable" = "Prices are unavailable right now. Trying again soon.";
+
+/* App errors */
+"error.offline.title" = "No connection";
+"error.offline.message" = "Check your internet connection and try again.";
+"error.offline.action" = "Retry";
+"error.ssl.title" = "Connection not secure";
+"error.ssl.message" = "A secure connection could not be established. Try again later.";
+"error.ssl.action" = "Go back";
+"error.page.title" = "Page not available";
+"error.page.message" = "The page could not be loaded.";
+"error.page.action" = "Retry";
+
+/* Settings */
+"settings.open" = "Settings";
+"settings.title" = "Settings";
+"settings.fuel" = "Widget fuel";
+"settings.fuel.footer" = "The Cheapest nearby widget shows the stations near you with the price of this fuel.";
+"settings.intro" = "Pumperly adds a Cheapest nearby widget to your Home Screen. Choose the fuel it shows; you can change it later from the widget or by holding the app icon.";
+"settings.done" = "Done";
+
+/* Web dialogs */
+"dialog.ok" = "OK";
+"dialog.cancel" = "Cancel";

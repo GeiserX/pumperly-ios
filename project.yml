@@ -1,0 +1,164 @@
+# Generate the Xcode project with `xcodegen generate`. The .xcodeproj is not committed:
+# this file is the single source of truth for targets, settings, version and build number.
+name: Pumperly
+options:
+  bundleIdPrefix: com.pumperly
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+settings:
+  base:
+    # Version and build number live only here. Bump CURRENT_PROJECT_VERSION for every TestFlight upload.
+    MARKETING_VERSION: 0.1.0
+    CURRENT_PROJECT_VERSION: 1
+    DEVELOPMENT_TEAM: 624WUVM8B4
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    LOCALIZATION_PREFERS_STRING_CATALOGS: NO
+    SWIFT_EMIT_LOC_STRINGS: YES
+
+targets:
+  Pumperly:
+    type: application
+    platform: iOS
+    sources:
+      - path: Pumperly
+      - path: Shared
+    info:
+      path: Pumperly/Info.plist
+      properties:
+        CFBundleDisplayName: Pumperly
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [en, es]
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        LSApplicationCategoryType: public.app-category.navigation
+        NSLocationWhenInUseUsageDescription: Pumperly uses your location to show fuel and charging stations near you and in the Cheapest nearby widget.
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        # Light status bar text on the site's dark header colour.
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UIViewControllerBasedStatusBarAppearance: false
+        # pumperly://settings opens the widget fuel screen (used by the widget).
+        CFBundleURLTypes:
+          - CFBundleURLName: com.pumperly.app
+            CFBundleURLSchemes: [pumperly]
+        UIApplicationShortcutItems:
+          - UIApplicationShortcutItemType: com.pumperly.app.widget-fuel
+            UIApplicationShortcutItemTitle: Widget fuel
+            UIApplicationShortcutItemIconSymbolName: fuelpump.fill
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    entitlements:
+      path: Pumperly/Pumperly.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.pumperly.app
+        com.apple.developer.associated-domains:
+          - applinks:pumperly.com
+          - applinks:www.pumperly.com
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pumperly.app
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+      configs:
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: Apple Distribution
+          PROVISIONING_PROFILE_SPECIFIER: Pumperly App Store
+    dependencies:
+      - target: PumperlyWidget
+
+  PumperlyWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PumperlyWidget
+      - path: Shared
+    info:
+      path: PumperlyWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Pumperly
+        CFBundleDevelopmentRegion: en
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSWidgetWantsLocation: true
+        NSLocationWhenInUseUsageDescription: Pumperly uses your location to show fuel and charging stations near you and in the Cheapest nearby widget.
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: PumperlyWidget/PumperlyWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.pumperly.app
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pumperly.app.widget
+        CODE_SIGN_STYLE: Automatic
+        SKIP_INSTALL: YES
+      configs:
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: Apple Distribution
+          PROVISIONING_PROFILE_SPECIFIER: Pumperly Widget App Store
+
+  PumperlyTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: PumperlyTests
+        excludes:
+          - Fixtures
+      - path: PumperlyTests/Fixtures
+        buildPhase: resources
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.pumperly.app.tests
+    dependencies:
+      - target: Pumperly
+
+  PumperlyUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: PumperlyUITests
+        excludes:
+          - Fixtures
+      - path: PumperlyUITests/Fixtures
+        buildPhase: resources
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.pumperly.app.uitests
+        TEST_TARGET_NAME: Pumperly
+    dependencies:
+      - target: Pumperly
+
+schemes:
+  Pumperly:
+    build:
+      targets:
+        Pumperly: all
+        PumperlyWidget: all
+    test:
+      config: Debug
+      gatherCoverageData: true
+      coverageTargets:
+        - Pumperly
+      targets:
+        - PumperlyTests
+        - PumperlyUITests
+    archive:
+      config: Release
