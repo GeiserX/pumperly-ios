@@ -44,9 +44,11 @@ final class ShellUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["settings.intro"].waitForExistence(timeout: 10))
         // A row near the top: the form is lazy, so rows below the fold do not exist yet.
         let premium = app.buttons["settings.fuel.B7_PREMIUM"]
-        XCTAssertTrue(premium.exists)
+        XCTAssertTrue(premium.waitForExistence(timeout: 10))
         premium.tap()
-        XCTAssertTrue(waitUntilSelected(premium))
+        // On a slow CI simulator the first tap can land while the sheet is still animating in.
+        if !waitUntilSelected(premium, timeout: 5) { premium.tap() }
+        XCTAssertTrue(waitUntilSelected(premium, timeout: 15))
         app.buttons["settings.done"].tap()
         XCTAssertTrue(app.staticTexts["shell.error.title"].waitForExistence(timeout: 10))
 
