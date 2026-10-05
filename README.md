@@ -1,7 +1,6 @@
 <h1 align="center">Pumperly for iOS</h1>
 
 <p align="center">
-  <a href="https://github.com/GeiserX/pumperly-ios/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/GeiserX/pumperly-ios/ci.yml?style=flat-square&label=CI" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/GeiserX/pumperly-ios?style=flat-square" alt="License"></a>
 </p>
 
