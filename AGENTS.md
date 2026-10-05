@@ -14,6 +14,44 @@ The iPhone app for [Pumperly](https://pumperly.com), the open-source fuel and EV
 - No AI attribution anywhere: no `Co-Authored-By` trailers, no "Generated with" lines. The `commit-msg` hook in `.beads/hooks` removes such trailers.
 - Never commit a secret, a signing certificate, a provisioning profile or an App Store Connect key.
 
+## Build and test
+
+All builds and tests run on macOS with Xcode. `project.yml` is the single source of truth (targets, settings, version, build number); the `.xcodeproj` is generated and never committed, so a change to targets or settings goes in `project.yml`.
+
+```bash
+xcodegen generate
+xcodebuild test -project Pumperly.xcodeproj -scheme Pumperly \
+  -destination "platform=iOS Simulator,id=$(scripts/pick-simulator.sh)" -parallel-testing-enabled NO
+```
+
+CI (`.github/workflows/ci.yml`) runs the same on `macos-latest` for every pull request and push to main, then builds the Release configuration unsigned. `release.yml` uploads to TestFlight on a `v*` tag; its secrets are listed in the README.
+
+## Architecture
+
+```
+Pumperly/            app target (com.pumperly.app)
+  Shell/             WKWebView shell: ShellModel, NavigationPolicy, ShellError, GeolocationBridge, ErrorView
+  Settings/          the widget fuel screen
+PumperlyWidget/      WidgetKit extension (com.pumperly.app.widget): provider and one-shot location
+Shared/              compiled into both targets: AppConfig, FuelType, SharedSettings (App Group),
+                     StationsAPI, TimelineMapping, widget views, strings and colours
+PumperlyTests/       unit tests, with fixtures copied from the live API
+PumperlyUITests/     UI tests; the shell test loads a bundled HTML page with no network
+```
+
+The Android app ([GeiserX/Pumperly-android](https://github.com/GeiserX/Pumperly-android)) is the reference for every shell behaviour. Keep them in step.
+
+## Rules the code depends on
+
+- Only `https` URLs on `AppConfig.allowedHosts` load in the app (`NavigationPolicy`). Everything else opens outside it; `javascript:`, `file:`, `data:` and `blob:` are cancelled. Never add a host without a reason in the PR.
+- Location goes only to a top-level https pumperly.com page. The injected script denies other frames, and `GeolocationBridge` checks the frame's origin again natively. Keep both checks.
+- Certificate errors are never bypassed: no `didReceive challenge` override.
+- The user agent ends with `PumperlyiOS/<version>` (WebKit's `applicationNameForUserAgent`). The site may rely on it.
+- The widget reads only the App Group `group.com.pumperly.app`. Coordinates are rounded to 3 decimals before they leave the device.
+- Debug-only launch hooks (`PUMPERLY_UITEST_*`, `PUMPERLY_START_URL`) sit behind `#if DEBUG`; Release builds never contain them.
+- Every user-facing string exists in English and Spanish (`Shared/Resources/*.lproj`, `InfoPlist.strings`); Spanish keeps its accents. A unit test checks the error and fuel strings.
+- When the app starts reading or sending new data, update both `PrivacyInfo.xcprivacy` files.
+
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:970c3bf2 -->
 ## Beads Issue Tracker
 
