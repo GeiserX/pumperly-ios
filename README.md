@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/banner.svg" alt="Pumperly for iOS" width="100%">
+</p>
+
 <h1 align="center">Pumperly for iOS</h1>
 
 <p align="center">
