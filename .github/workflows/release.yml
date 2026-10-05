@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: release
@@ -24,6 +25,24 @@ jobs:
       WIDGET_PROFILE_NAME: Pumperly Widget App Store
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check the tag is on main and CI passed there
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_REF_NAME points at $GITHUB_SHA, which is not on main"
+            exit 1
+          fi
+          conclusion=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main \
+            --commit "$GITHUB_SHA" --json conclusion --jq '.[0].conclusion // "none"')
+          if [ "$conclusion" != success ]; then
+            echo "::error::CI on main for $GITHUB_SHA is '$conclusion', not success"
+            exit 1
+          fi
 
       - name: Check the tag matches project.yml
         run: |

@@ -110,6 +110,7 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
         case .notDetermined:
             manager.requestWhenInUseAuthorization()
         case .denied, .restricted:
+            settings.clearLocation()
             reject(oneShotIDs + watchIDs, code: 1, message: "Location permission denied")
             oneShotIDs.removeAll()
             watchIDs.removeAll()
@@ -156,7 +157,10 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
     }
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
         MainActor.assumeIsolated {
+            // Permission withdrawn: the widget must not keep using a position saved earlier.
+            if status == .denied || status == .restricted { settings.clearLocation() }
             if !oneShotIDs.isEmpty || !watchIDs.isEmpty { proceed() }
         }
     }

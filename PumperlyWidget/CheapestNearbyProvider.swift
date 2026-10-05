@@ -21,15 +21,21 @@ struct CheapestNearbyProvider: TimelineProvider {
         }
     }
 
-    /// Live location first, then the last one the app saved; no location means no request.
+    /// A live fix first. Only when the widget may use location but no fix came in time does the
+    /// last position the app saved stand in. Without permission no position is used or sent.
     static func loadEntry(now: Date = Date()) async -> CheapestNearbyEntry {
         let settings = SharedSettings()
         let fuel = settings.fuel
-        var coordinate = await WidgetLocator.currentCoordinate()
-        if coordinate == nil, let saved = settings.lastLocation(now: now) {
+        let coordinate: CLLocationCoordinate2D
+        switch await WidgetLocator.locate() {
+        case .coordinate(let latitude, let longitude):
+            coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        case .unavailable:
+            guard let saved = settings.lastLocation(now: now) else {
+                return TimelineMapping.entry(date: now, fuel: fuel, result: nil)
+            }
             coordinate = CLLocationCoordinate2D(latitude: saved.latitude, longitude: saved.longitude)
-        }
-        guard let coordinate else {
+        case .denied:
             return TimelineMapping.entry(date: now, fuel: fuel, result: nil)
         }
         do {

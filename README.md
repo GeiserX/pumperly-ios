@@ -16,7 +16,7 @@ Pumperly for iOS is the iPhone app for [Pumperly](https://pumperly.com), the ope
 ## Features
 
 - The full Pumperly route planner, with fuel and EV prices along the route, from the live site.
-- A "Cheapest nearby" widget in small and medium sizes: the cheapest stations around you for your fuel, refreshed about hourly. Tapping a station opens its page in the app.
+- A "Cheapest nearby" widget in small and medium sizes: the cheapest of the 50 nearest stations within 10 km for your fuel, refreshed about hourly. Tapping a station opens its page in the app.
 - One native setting, the widget's fuel, asked once on first launch and reachable from the widget or by holding the app icon.
 - Native location: the site and the widget share one iOS permission, and only pumperly.com pages can read it.
 - Only `https://pumperly.com` loads inside the app; every other link opens in Safari or the app that owns it.
@@ -39,7 +39,12 @@ xcodegen generate
 open Pumperly.xcodeproj
 ```
 
-Run the `Pumperly` scheme on an iPhone simulator. `xcodebuild test -scheme Pumperly -destination 'platform=iOS Simulator,name=iPhone 17'` runs the unit and UI tests, as CI does on every pull request.
+Run the `Pumperly` scheme on an iPhone simulator. This runs the unit and UI tests on the newest installed iPhone simulator, as CI does on every pull request:
+
+```bash
+xcodebuild test -project Pumperly.xcodeproj -scheme Pumperly \
+  -destination "platform=iOS Simulator,id=$(scripts/pick-simulator.sh)" -parallel-testing-enabled NO
+```
 
 ## Release
 

@@ -3,19 +3,24 @@ import CoreLocation
 /// One location fix for a timeline refresh, with a timeout so a slow fix never blanks the widget.
 @MainActor
 final class WidgetLocator: NSObject, CLLocationManagerDelegate {
-    private let manager = CLLocationManager()
-    private var continuation: CheckedContinuation<CLLocationCoordinate2D?, Never>?
-
-    static func currentCoordinate(timeout: TimeInterval = 10) async -> CLLocationCoordinate2D? {
-        await WidgetLocator().locate(timeout: timeout)
+    enum Outcome: Equatable {
+        case coordinate(latitude: Double, longitude: Double)
+        /// The user has not allowed the widget to use location: use no position at all.
+        case denied
+        /// Allowed, but no recent fix arrived in time: a recent position saved by the app may stand in.
+        case unavailable
     }
 
-    private func locate(timeout: TimeInterval) async -> CLLocationCoordinate2D? {
-        guard manager.isAuthorizedForWidgetUpdates else { return nil }
-        // A recent cached fix is good enough for "stations near me".
-        if let cached = manager.location, -cached.timestamp.timeIntervalSinceNow < 15 * 60 {
-            return cached.coordinate
-        }
+    private let manager = CLLocationManager()
+    private var continuation: CheckedContinuation<Outcome, Never>?
+
+    static func locate(timeout: TimeInterval = 10) async -> Outcome {
+        await WidgetLocator().run(timeout: timeout)
+    }
+
+    private func run(timeout: TimeInterval) async -> Outcome {
+        guard manager.isAuthorizedForWidgetUpdates else { return .denied }
+        if let fix = Self.recent(manager.location) { return fix }
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         return await withCheckedContinuation { continuation in
@@ -23,22 +28,30 @@ final class WidgetLocator: NSObject, CLLocationManagerDelegate {
             manager.requestLocation()
             Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                self?.finish(self?.manager.location?.coordinate)
+                self?.finish(Self.recent(self?.manager.location) ?? .unavailable)
             }
         }
     }
 
-    private func finish(_ coordinate: CLLocationCoordinate2D?) {
-        continuation?.resume(returning: coordinate)
+    /// Stations "near me" need a fix from the last 15 minutes; an older cached fix is ignored.
+    nonisolated static func recent(_ location: CLLocation?, now: Date = Date()) -> Outcome? {
+        guard let location, now.timeIntervalSince(location.timestamp) < 15 * 60 else { return nil }
+        return .coordinate(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+    }
+
+    private func finish(_ outcome: Outcome) {
+        continuation?.resume(returning: outcome)
         continuation = nil
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        let coordinate = locations.last?.coordinate
-        MainActor.assumeIsolated { finish(coordinate) }
+        // A stale cached fix can arrive first; keep waiting for a recent one until the timeout.
+        guard let outcome = Self.recent(locations.last) else { return }
+        MainActor.assumeIsolated { finish(outcome) }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        MainActor.assumeIsolated { finish(nil) }
+        let denied = (error as? CLError)?.code == .denied
+        MainActor.assumeIsolated { finish(denied ? .denied : .unavailable) }
     }
 }

@@ -39,7 +39,9 @@ private struct FeatureCollection: Decodable {
 
 enum StationsAPI {
     static let radiusKm = 10.0
-    static let limit = 20
+    /// The API's maximum. It returns stations nearest first, so "cheapest nearby" means the
+    /// cheapest of the 50 nearest stations within the radius.
+    static let limit = 50
 
     /// Rounds a coordinate to 3 decimals (about 110 m) before it leaves the device.
     static func round(_ value: Double) -> Double {
@@ -84,15 +86,17 @@ enum StationsAPI {
         return try decode(data)
     }
 
-    /// The station's page on the site: `/?station=CC:externalId&lat=..&lng=..`
-    /// (the share format in GeiserX/Pumperly `src/lib/share-url.ts`).
-    static func pageURL(for station: Station, base: URL = AppConfig.baseURL) -> URL {
+    /// The station's page on the site: `/?station=CC:externalId&lat=..&lng=..&fuel=..`
+    /// (the share format in GeiserX/Pumperly `src/lib/share-url.ts`). The fuel makes the site
+    /// open the layer the station was listed for, so an EV charger opens on the EV layer.
+    static func pageURL(for station: Station, fuel: FuelType, base: URL = AppConfig.baseURL) -> URL {
         var components = URLComponents(url: base, resolvingAgainstBaseURL: false)!
         components.path = "/"
         components.queryItems = [
             URLQueryItem(name: "station", value: "\(station.country.uppercased()):\(station.externalId)"),
             URLQueryItem(name: "lat", value: String((station.latitude * 1e5).rounded() / 1e5)),
             URLQueryItem(name: "lng", value: String((station.longitude * 1e5).rounded() / 1e5)),
+            URLQueryItem(name: "fuel", value: fuel.rawValue),
         ]
         return components.url!
     }

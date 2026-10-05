@@ -54,7 +54,7 @@ enum TimelineMapping {
                 valueText: fuel.hasPrice
                     ? station.price.map { formatPrice($0, currency: station.currency, locale: locale) }
                     : station.powerKw.map { formatPower($0, locale: locale) },
-                url: StationsAPI.pageURL(for: station)
+                url: StationsAPI.pageURL(for: station, fuel: fuel)
             )
         }
     }

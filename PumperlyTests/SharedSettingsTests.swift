@@ -33,6 +33,15 @@ final class SharedSettingsTests: XCTestCase {
         XCTAssertNil(settings.lastLocation())
     }
 
+    func testClearLocationKeepsTheFuel() {
+        let settings = SharedSettings(defaults: defaults)
+        settings.fuel = .lpg
+        settings.saveLocation(latitude: 40, longitude: -3)
+        settings.clearLocation()
+        XCTAssertNil(settings.lastLocation())
+        XCTAssertEqual(settings.fuel, .lpg)
+    }
+
     func testUnknownStoredFuelFallsBackToDefault() {
         defaults.set("KEROSENE", forKey: SharedSettings.fuelKey)
         XCTAssertEqual(SharedSettings(defaults: defaults).fuel, .b7)

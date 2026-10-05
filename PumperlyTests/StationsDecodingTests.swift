@@ -37,14 +37,14 @@ final class StationsDecodingTests: XCTestCase {
         XCTAssertEqual(components.host, "pumperly.com")
         XCTAssertEqual(components.path, "/api/stations/nearest")
         let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
-        XCTAssertEqual(query, ["lat": "40.417", "lon": "-3.704", "radius_km": "10", "fuel": "E5", "limit": "20"])
+        XCTAssertEqual(query, ["lat": "40.417", "lon": "-3.704", "radius_km": "10", "fuel": "E5", "limit": "50"])
     }
 
     func testStationPageUsesTheSiteShareFormat() throws {
         let station = try XCTUnwrap(StationsAPI.decode(Fixture.data("nearest-b7")).first)
-        XCTAssertEqual(StationsAPI.pageURL(for: station).absoluteString,
-                       "https://pumperly.com/?station=ES:4508&lat=40.40528&lng=-3.70314")
-        XCTAssertTrue(NavigationPolicy.isAllowed(StationsAPI.pageURL(for: station)))
+        XCTAssertEqual(StationsAPI.pageURL(for: station, fuel: .b7).absoluteString,
+                       "https://pumperly.com/?station=ES:4508&lat=40.40528&lng=-3.70314&fuel=B7")
+        XCTAssertTrue(NavigationPolicy.isAllowed(StationsAPI.pageURL(for: station, fuel: .b7)))
     }
 
     func testFuelCodesMatchTheSite() {

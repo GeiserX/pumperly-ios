@@ -13,7 +13,7 @@ final class TimelineMappingTests: XCTestCase {
         XCTAssertEqual(rows.map(\.valueText), ["€1.949", "€1.955", "€1.969"])
         XCTAssertEqual(rows.map(\.distanceText), ["1.5 km", "1.6 km", "1.3 km"])
         XCTAssertEqual(rows.first?.url.absoluteString,
-                       "https://pumperly.com/?station=ES:4711&lat=40.43&lng=-3.7085")
+                       "https://pumperly.com/?station=ES:4711&lat=40.43&lng=-3.7085&fuel=B7")
     }
 
     func testEqualPricesFallBackToDistance() {
@@ -35,6 +35,8 @@ final class TimelineMappingTests: XCTestCase {
         let rows = TimelineMapping.rows(from: Array(stations), fuel: .ev, locale: english)
         XCTAssertEqual(rows.map(\.valueText), ["360 kW", "50 kW", "7 kW"])
         XCTAssertEqual(rows.first?.name, "Telpark - Plaza del Carmen")
+        // The link opens the EV layer, where the charger lives.
+        XCTAssertTrue(rows.allSatisfy { $0.url.absoluteString.hasSuffix("&fuel=EV") })
     }
 
     func testAtMostThreeRows() {

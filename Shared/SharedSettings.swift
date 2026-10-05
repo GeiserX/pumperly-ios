@@ -28,6 +28,10 @@ struct SharedSettings {
         nonmutating set { defaults.set(newValue, forKey: Self.fuelChosenKey) }
     }
 
+    func clearLocation() {
+        for key in [Self.latitudeKey, Self.longitudeKey, Self.locationDateKey] { defaults.removeObject(forKey: key) }
+    }
+
     func reset() {
         for key in [Self.fuelKey, Self.fuelChosenKey, Self.latitudeKey, Self.longitudeKey, Self.locationDateKey] {
             defaults.removeObject(forKey: key)
