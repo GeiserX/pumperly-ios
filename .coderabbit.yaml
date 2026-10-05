@@ -1,0 +1,64 @@
+language: "en-US"
+tone_instructions: "Be direct and concise. No fluff."
+
+reviews:
+  profile: "chill"
+  high_level_summary: true
+  collapse_walkthrough: true
+  poem: false
+  sequence_diagrams: false
+  suggested_reviewers: false
+  auto_review:
+    enabled: true
+    drafts: false
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT REVIEW"
+  path_filters:
+    - "!**/*.xcodeproj/**"
+    - "!**/DerivedData/**"
+    - "!build/**"
+    - "!**/*.png"
+    - "!**/*.svg"
+  path_instructions:
+    - path: "Pumperly/**/*.swift"
+      instructions: |
+        Focus on WKWebView security: only https pumperly.com hosts load in the app,
+        everything else opens outside it; geolocation only for pumperly.com origins.
+        Check main-thread UI work and that errors never leak internal details.
+    - path: "PumperlyWidget/**/*.swift"
+      instructions: |
+        Check WidgetKit timeline correctness, network timeouts, and that a failed
+        fetch degrades to a readable placeholder instead of a blank widget.
+    - path: "**/PrivacyInfo.xcprivacy"
+      instructions: |
+        Verify every required-reason API the target uses is declared, tracking is
+        false, and collected data types match what the code sends.
+    - path: "project.yml"
+      instructions: |
+        Version and build number live only here. Check bundle ids, team id,
+        entitlements and the iOS deployment target stay consistent across targets.
+  tools:
+    gitleaks:
+      enabled: true
+    swiftlint:
+      enabled: true
+    actionlint:
+      enabled: true
+    yamllint:
+      enabled: true
+    markdownlint:
+      enabled: true
+    shellcheck:
+      enabled: true
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  learnings:
+    scope: "local"
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "AGENTS.md"

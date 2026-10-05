@@ -1,0 +1,54 @@
+/* Tipos de combustible, con los nombres de la web */
+"fuel.B7" = "Diésel A";
+"fuel.B7_PREMIUM" = "Diésel Premium";
+"fuel.B10" = "Diésel B10";
+"fuel.B_AGRICULTURAL" = "Diésel B (agrícola)";
+"fuel.HVO" = "Diésel renovable (HVO)";
+"fuel.E5" = "Gasolina 95";
+"fuel.E5_PREMIUM" = "Gasolina 95 Premium";
+"fuel.E10" = "Gasolina 95 E10";
+"fuel.E5_98" = "Gasolina 98";
+"fuel.E98_E10" = "Gasolina 98 E10";
+"fuel.LPG" = "GLP / Autogás";
+"fuel.CNG" = "GNC";
+"fuel.LNG" = "GNL";
+"fuel.H2" = "Hidrógeno";
+"fuel.EV" = "Carga eléctrica";
+"fuel.ADBLUE" = "AdBlue";
+
+"fuel.category.diesel" = "Diésel";
+"fuel.category.gasoline" = "Gasolina";
+"fuel.category.gas" = "Gas";
+"fuel.category.hydrogen" = "Hidrógeno";
+"fuel.category.electric" = "Eléctrico";
+"fuel.category.other" = "Otros";
+
+/* Widget */
+"widget.title" = "Lo más barato cerca";
+"widget.description" = "Las gasolineras más baratas cerca de ti para tu combustible.";
+"widget.needsLocation" = "Abre Pumperly y permite la ubicación para ver las gasolineras cercanas.";
+"widget.empty" = "No hay gasolineras con este combustible a menos de 10 km.";
+"widget.unavailable" = "Los precios no están disponibles ahora. Se volverá a intentar en breve.";
+
+/* Errores de la app */
+"error.offline.title" = "Sin conexión";
+"error.offline.message" = "Comprueba tu conexión a internet y vuelve a intentarlo.";
+"error.offline.action" = "Reintentar";
+"error.ssl.title" = "Conexión no segura";
+"error.ssl.message" = "No se ha podido establecer una conexión segura. Inténtalo de nuevo más tarde.";
+"error.ssl.action" = "Volver";
+"error.page.title" = "Página no disponible";
+"error.page.message" = "No se ha podido cargar la página.";
+"error.page.action" = "Reintentar";
+
+/* Ajustes */
+"settings.open" = "Ajustes";
+"settings.title" = "Ajustes";
+"settings.fuel" = "Combustible del widget";
+"settings.fuel.footer" = "El widget «Lo más barato cerca» muestra las gasolineras cercanas con el precio de este combustible.";
+"settings.intro" = "Pumperly añade a tu pantalla de inicio el widget «Lo más barato cerca». Elige el combustible que muestra; puedes cambiarlo después desde el widget o manteniendo pulsado el icono de la app.";
+"settings.done" = "Hecho";
+
+/* Diálogos de la web */
+"dialog.ok" = "Aceptar";
+"dialog.cancel" = "Cancelar";
