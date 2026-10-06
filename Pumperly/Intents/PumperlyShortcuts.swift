@@ -1,7 +1,8 @@
 import AppIntents
 
 /// Siri phrases and Spotlight shortcuts. The English phrases are the keys of AppShortcuts.strings;
-/// every phrase must name the app.
+/// every phrase must name the app. Only the lookup takes the fuel in a phrase: each parameterised
+/// phrase adds one Shortcuts tile per fuel, and two sets of tiles both named "Diesel" would be ambiguous.
 struct PumperlyShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
@@ -18,7 +19,7 @@ struct PumperlyShortcuts: AppShortcutsProvider {
             intent: SetWidgetFuelIntent(),
             phrases: [
                 "Set the widget fuel in \(.applicationName)",
-                "Show \(\.$fuel) in the \(.applicationName) widget",
+                "Change the \(.applicationName) widget fuel",
             ],
             shortTitle: LocalizedStringResource("shortcut.setFuel", table: "Intents"),
             systemImageName: "slider.horizontal.3")

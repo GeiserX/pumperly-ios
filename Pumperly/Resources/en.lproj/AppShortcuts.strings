@@ -4,6 +4,6 @@
 "Cheapest ${fuel} nearby in ${applicationName}" = "Cheapest ${fuel} nearby in ${applicationName}";
 "Where is the cheapest ${fuel} in ${applicationName}" = "Where is the cheapest ${fuel} in ${applicationName}";
 "Set the widget fuel in ${applicationName}" = "Set the widget fuel in ${applicationName}";
-"Show ${fuel} in the ${applicationName} widget" = "Show ${fuel} in the ${applicationName} widget";
+"Change the ${applicationName} widget fuel" = "Change the ${applicationName} widget fuel";
 "Plan a route with ${applicationName}" = "Plan a route with ${applicationName}";
 "Open the planner in ${applicationName}" = "Open the planner in ${applicationName}";
