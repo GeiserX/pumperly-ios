@@ -25,6 +25,7 @@ final class AppRouter: ObservableObject {
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, configurationForConnecting session: UISceneSession,
                      options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        if session.role == CarPlaySceneDelegate.sessionRole { return CarPlaySceneDelegate.configuration(for: session) }
         if options.shortcutItem?.type == AppRouter.settingsShortcut {
             AppRouter.shared.settingsRequested = true
         }

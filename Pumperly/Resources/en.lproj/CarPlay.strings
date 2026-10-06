@@ -1,0 +1,15 @@
+/* CarPlay screen. %@ is the fuel name. */
+"carplay.title" = "Cheapest nearby · %@";
+"carplay.loading" = "Finding stations near you…";
+"carplay.directions" = "Directions";
+"carplay.fuel" = "Fuel";
+"carplay.fuel.title" = "Choose fuel";
+"carplay.selected" = "Selected";
+"carplay.retry" = "Retry";
+"carplay.changeFuel" = "Change fuel";
+"carplay.needsLocation.title" = "Location needed";
+"carplay.needsLocation.message" = "Open Pumperly on your iPhone and allow location to see stations near you.";
+"carplay.empty.title" = "No stations nearby";
+"carplay.empty.message" = "No stations with this fuel within 10 km.";
+"carplay.offline.title" = "Prices unavailable";
+"carplay.offline.message" = "Check your iPhone's connection and try again.";
