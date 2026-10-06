@@ -37,10 +37,12 @@ struct ComplicationSummary: Equatable {
         }
     }
 
-    /// The value without its currency or unit, for the small round face: "1,459 €" becomes "1,459".
+    /// The value without its currency or unit, for the small round face: "1,459 €" and "€1.459"
+    /// become the number alone. Only the ends are trimmed, so any locale's separators stay.
     var compactValue: String {
-        let kept = value.filter { $0.isNumber || $0 == "," || $0 == "." }
-        return kept.isEmpty ? value : kept
+        guard let first = value.firstIndex(where: \.isNumber),
+              let last = value.lastIndex(where: \.isNumber) else { return value }
+        return String(value[first...last])
     }
 }
 
