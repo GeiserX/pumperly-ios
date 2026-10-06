@@ -1,0 +1,22 @@
+/* Widget de la pantalla de bloqueo: códigos cortos de combustible para la línea única */
+"short.B7" = "B7";
+"short.B7_PREMIUM" = "B7+";
+"short.B10" = "B10";
+"short.B_AGRICULTURAL" = "Gasóleo B";
+"short.HVO" = "HVO";
+"short.E5" = "E5";
+"short.E5_PREMIUM" = "E5+";
+"short.E10" = "E10";
+"short.E5_98" = "98";
+"short.E98_E10" = "98 E10";
+"short.LPG" = "GLP";
+"short.CNG" = "GNC";
+"short.LNG" = "GNL";
+"short.H2" = "H2";
+"short.EV" = "VE";
+"short.ADBLUE" = "AdBlue";
+
+/* Widget de la pantalla de bloqueo: mensajes cortos cuando no hay estación que mostrar */
+"message.needsLocation" = "Sin ubicación";
+"message.empty" = "Nada cerca";
+"message.unavailable" = "Sin conexión";

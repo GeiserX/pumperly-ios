@@ -7,6 +7,15 @@ struct CheapestNearbyView: View {
     let entry: CheapestNearbyEntry
 
     var body: some View {
+        switch family {
+        case .accessoryCircular, .accessoryRectangular, .accessoryInline:
+            CheapestNearbyAccessoryView(entry: entry)
+        default:
+            systemBody
+        }
+    }
+
+    private var systemBody: some View {
         Group {
             switch entry.content {
             case .stations(let rows):

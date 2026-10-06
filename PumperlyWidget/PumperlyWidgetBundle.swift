@@ -17,6 +17,7 @@ struct CheapestNearbyWidget: Widget {
         }
         .configurationDisplayName(Text("widget.title"))
         .description(Text("widget.description"))
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium,
+                            .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
