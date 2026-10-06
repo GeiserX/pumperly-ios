@@ -87,7 +87,7 @@ struct StationsView: View {
     }
 
     private var refreshButton: some View {
-        Button { model.refresh() } label: {
+        Button { model.refresh(force: true) } label: {
             HStack {
                 Spacer()
                 if model.isLoading {

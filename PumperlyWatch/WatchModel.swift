@@ -11,6 +11,10 @@ final class WatchModel: ObservableObject {
 
     private let settings: SharedSettings
     private var loadTask: Task<Void, Never>?
+    /// When the shown stations were loaded. The watch becomes active on every wrist raise;
+    /// within this window that reuses the list instead of a new fix and request.
+    private var loadedAt: Date?
+    static let reuseInterval: TimeInterval = 5 * 60
 
     init(settings: SharedSettings = SharedSettings()) {
         self.settings = settings
@@ -21,7 +25,13 @@ final class WatchModel: ObservableObject {
         WatchSync.shared.activate()
     }
 
-    func refresh() {
+    /// Loads the stations again. Without `force`, a list loaded in the last few minutes stays.
+    func refresh(force: Bool = false) {
+        if !force {
+            if isLoading { return }
+            if let loadedAt, case .stations = content,
+               Date().timeIntervalSince(loadedAt) < Self.reuseInterval { return }
+        }
         loadTask?.cancel()
         isLoading = true
         let fuel = fuel
@@ -29,6 +39,7 @@ final class WatchModel: ObservableObject {
             let entry = await WatchStations.loadEntry(fuel: fuel, askPermission: true, settings: settings)
             guard !Task.isCancelled else { return }
             content = entry.content
+            loadedAt = Date()
             isLoading = false
         }
     }
@@ -40,7 +51,7 @@ final class WatchModel: ObservableObject {
         WidgetCenter.shared.reloadAllTimelines()
         fuel = newFuel
         content = nil
-        refresh()
+        refresh(force: true)
     }
 
     /// A fuel sent by the iPhone, already stored by WatchSync.
@@ -48,6 +59,6 @@ final class WatchModel: ObservableObject {
         guard newFuel != fuel else { return }
         fuel = newFuel
         content = nil
-        refresh()
+        refresh(force: true)
     }
 }
