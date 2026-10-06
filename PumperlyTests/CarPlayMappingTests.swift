@@ -86,6 +86,31 @@ final class CarPlayMappingTests: XCTestCase {
         XCTAssertNil(CarPlayMapping.position(for: .denied, saved: saved))
     }
 
+    func testInformationActions() {
+        XCTAssertEqual(CarPlayMapping.informationActions(for: .empty), [.retry, .changeFuel])
+        XCTAssertEqual(CarPlayMapping.informationActions(for: .offline), [.retry])
+        XCTAssertEqual(CarPlayMapping.informationActions(for: .needsLocation), [.retry])
+        XCTAssertEqual(CarPlayMapping.informationActions(for: .stations([])), [])
+    }
+
+    func testEmptyMessageNamesTheSearchRadius() throws {
+        let message = try XCTUnwrap(CarPlayMapping.message(for: .empty)).message
+        XCTAssertTrue(message.contains("\(CarPlayMapping.radiusText) km"), message)
+        XCTAssertFalse(message.contains("%@"), message)
+        XCTAssertEqual(CarPlayMapping.radiusText, StationsAPI.radiusKm.formatted(.number))
+    }
+
+    func testChoosingAFuelInTheCarCountsAsChosen() throws {
+        let suite = "CarPlayMappingTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SharedSettings(defaults: defaults)
+        XCTAssertFalse(settings.hasChosenFuel)
+        CarPlayMapping.choose(.ev, in: settings)
+        XCTAssertEqual(settings.fuel, .ev)
+        XCTAssertTrue(settings.hasChosenFuel)
+    }
+
     func testPickerCoversEveryFuelOnce() {
         var fuels: [FuelType] = []
         for category in CarPlayMapping.categories {
@@ -146,9 +171,28 @@ final class CarPlayMappingTests: XCTestCase {
     }
 
     @MainActor
-    func testSceneConfigurationUsesTheCarPlayDelegate() {
-        XCTAssertEqual(CarPlaySceneDelegate.sessionRole, .carTemplateApplication)
-        XCTAssertEqual(CarPlaySceneDelegate.configurationName, "CarPlay")
+    func testSceneConfigurationBuildsTheCarPlayScene() {
+        let configuration = CarPlaySceneDelegate.configuration(role: .carTemplateApplication)
+        XCTAssertEqual(configuration.role, .carTemplateApplication)
+        // `name` reads back nil until the scene manifest declares "CarPlay", so it is not checked here.
+        XCTAssertEqual(configuration.delegateClass.map(ObjectIdentifier.init), ObjectIdentifier(CarPlaySceneDelegate.self))
+        XCTAssertEqual(configuration.sceneClass.map(ObjectIdentifier.init), ObjectIdentifier(CPTemplateApplicationScene.self))
+    }
+
+    @MainActor
+    func testEveryInformationScreenKeepsTheFuelButton() throws {
+        var screens: [CPInformationTemplate] = [CarPlayTemplates.loading(fuel: .b7) {}]
+        for state in [CarPlayMapping.State.needsLocation, .empty, .offline] {
+            screens.append(try XCTUnwrap(CarPlayTemplates.information(for: state, retry: {}, changeFuel: {}), "\(state)"))
+        }
+        for screen in screens {
+            XCTAssertEqual(screen.trailingNavigationBarButtons.map(\.title), [CarPlayMapping.text("carplay.fuel")],
+                           screen.title)
+        }
+        XCTAssertEqual(screens[0].title, CarPlayMapping.title(for: .b7))
+        XCTAssertEqual(screens[2].actions.map(\.title),
+                       [CarPlayMapping.text("carplay.retry"), CarPlayMapping.text("carplay.changeFuel")])
+        XCTAssertNil(CarPlayTemplates.information(for: .stations([]), retry: {}, changeFuel: {}))
     }
 
     private func station(id: String, price: Double? = 1.5, distance: Double = 1, brand: String? = "Brand",

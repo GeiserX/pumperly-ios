@@ -36,6 +36,12 @@ enum CarPlayMapping {
         case unavailable
     }
 
+    /// The buttons of an information screen.
+    enum InformationAction: Equatable {
+        case retry
+        case changeFuel
+    }
+
     /// What a row of the fuel picker does when chosen.
     enum PickerAction: Equatable {
         case select(FuelType)
@@ -85,7 +91,23 @@ enum CarPlayMapping {
         }
     }
 
+    /// Retry everywhere; "Change fuel" too when nothing sells the chosen fuel.
+    static func informationActions(for state: State) -> [InformationAction] {
+        switch state {
+        case .stations: return []
+        case .empty: return [.retry, .changeFuel]
+        case .needsLocation, .offline: return [.retry]
+        }
+    }
+
     // MARK: Fuel picker
+
+    /// Picking a fuel in the car counts as choosing it, as on the phone's settings screen,
+    /// so the phone does not ask again on its next launch.
+    static func choose(_ fuel: FuelType, in settings: SharedSettings) {
+        settings.fuel = fuel
+        settings.hasChosenFuel = true
+    }
 
     /// The first level of the picker: one row per category.
     static let categories = FuelType.Category.allCases
@@ -112,11 +134,16 @@ enum CarPlayMapping {
         String(format: text("carplay.title"), fuel.label)
     }
 
+    /// The search radius as the request sends it, so the text follows `StationsAPI.radiusKm`.
+    static var radiusText: String {
+        StationsAPI.radiusKm.formatted(.number)
+    }
+
     static func message(for state: State) -> (title: String, message: String)? {
         switch state {
         case .stations: return nil
         case .needsLocation: return (text("carplay.needsLocation.title"), text("carplay.needsLocation.message"))
-        case .empty: return (text("carplay.empty.title"), text("carplay.empty.message"))
+        case .empty: return (text("carplay.empty.title"), String(format: text("carplay.empty.message"), radiusText))
         case .offline: return (text("carplay.offline.title"), text("carplay.offline.message"))
         }
     }

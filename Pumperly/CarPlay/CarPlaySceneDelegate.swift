@@ -13,7 +13,11 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
     static let configurationName = "CarPlay"
 
     static func configuration(for session: UISceneSession) -> UISceneConfiguration {
-        let configuration = UISceneConfiguration(name: configurationName, sessionRole: session.role)
+        configuration(role: session.role)
+    }
+
+    static func configuration(role: UISceneSession.Role) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: configurationName, sessionRole: role)
         configuration.sceneClass = CPTemplateApplicationScene.self
         configuration.delegateClass = CarPlaySceneDelegate.self
         return configuration
@@ -60,10 +64,14 @@ final class CarPlayController {
     }
 
     func start() {
-        let fuel = SharedSettings().fuel
-        setRoot(CarPlayTemplates.information(title: CarPlayMapping.title(for: fuel),
-                                             message: CarPlayMapping.text("carplay.loading"), actions: []))
+        showLoading(SharedSettings().fuel)
         reload()
+    }
+
+    /// Replaces whatever is on screen, so no stale stations stay up while a fetch runs.
+    private func showLoading(_ fuel: FuelType) {
+        pointsTemplate = nil
+        setRoot(CarPlayTemplates.loading(fuel: fuel) { [weak self] in self?.showFuelPicker() })
     }
 
     func stop() {
@@ -106,15 +114,11 @@ final class CarPlayController {
     private func render(_ state: CarPlayMapping.State, fuel: FuelType) {
         let title = CarPlayMapping.title(for: fuel)
         guard case .stations(let places) = state else {
-            guard let text = CarPlayMapping.message(for: state) else { return }
-            var actions = [CarPlayTemplates.button(CarPlayMapping.text("carplay.retry")) { [weak self] in self?.reload() }]
-            if state == .empty {
-                actions.append(CarPlayTemplates.button(CarPlayMapping.text("carplay.changeFuel")) { [weak self] in
-                    self?.showFuelPicker()
-                })
-            }
+            guard let template = CarPlayTemplates.information(
+                for: state, retry: { [weak self] in self?.reload() },
+                changeFuel: { [weak self] in self?.showFuelPicker() }) else { return }
             pointsTemplate = nil
-            setRoot(CarPlayTemplates.information(title: text.title, message: text.message, actions: actions))
+            setRoot(template)
             return
         }
 
@@ -149,7 +153,7 @@ final class CarPlayController {
     }
 
     private func fuelButton() -> CPBarButton {
-        CPBarButton(title: CarPlayMapping.text("carplay.fuel")) { [weak self] _ in self?.showFuelPicker() }
+        CarPlayTemplates.fuelButton { [weak self] in self?.showFuelPicker() }
     }
 
     /// Two levels: the categories, then the fuels of a category (a one-fuel category selects at once).
@@ -189,12 +193,12 @@ final class CarPlayController {
         interface.pushTemplate(template, animated: true, completion: nil)
     }
 
-    /// The fuel is shared with the widget, so its timeline reloads too.
+    /// The fuel is shared with the widget, so its timeline reloads too. Setting the root
+    /// also drops the picker from the stack.
     private func choose(_ fuel: FuelType) {
-        SharedSettings().fuel = fuel
+        CarPlayMapping.choose(fuel, in: SharedSettings())
         WidgetCenter.shared.reloadTimelines(ofKind: Self.widgetKind)
-        interface.popToRootTemplate(animated: true, completion: nil)
-        pointsTemplate?.title = CarPlayMapping.title(for: fuel)
+        showLoading(fuel)
         reload()
     }
 
@@ -233,9 +237,36 @@ enum CarPlayTemplates {
         return CPListTemplate(title: title, sections: [CPListSection(items: items)])
     }
 
-    static func information(title: String, message: String, actions: [CPTextButton]) -> CPInformationTemplate {
-        CPInformationTemplate(title: title, layout: .leading,
-                              items: [CPInformationItem(title: nil, detail: message)], actions: actions)
+    /// The screen for a state without stations: Retry, "Change fuel" when nothing sells the fuel,
+    /// and the Fuel button. `nil` for `.stations`.
+    static func information(for state: CarPlayMapping.State, retry: @escaping () -> Void,
+                            changeFuel: @escaping () -> Void) -> CPInformationTemplate? {
+        guard let text = CarPlayMapping.message(for: state) else { return nil }
+        let actions = CarPlayMapping.informationActions(for: state).map { action -> CPTextButton in
+            switch action {
+            case .retry: return button(CarPlayMapping.text("carplay.retry"), action: retry)
+            case .changeFuel: return button(CarPlayMapping.text("carplay.changeFuel"), action: changeFuel)
+            }
+        }
+        return information(title: text.title, message: text.message, actions: actions, changeFuel: changeFuel)
+    }
+
+    static func loading(fuel: FuelType, changeFuel: @escaping () -> Void) -> CPInformationTemplate {
+        information(title: CarPlayMapping.title(for: fuel), message: CarPlayMapping.text("carplay.loading"),
+                    actions: [], changeFuel: changeFuel)
+    }
+
+    /// Every information screen keeps the Fuel button, so a wrong fuel is never a dead end.
+    static func information(title: String, message: String, actions: [CPTextButton],
+                            changeFuel: @escaping () -> Void) -> CPInformationTemplate {
+        let template = CPInformationTemplate(title: title, layout: .leading,
+                                             items: [CPInformationItem(title: nil, detail: message)], actions: actions)
+        template.trailingNavigationBarButtons = [fuelButton(changeFuel)]
+        return template
+    }
+
+    static func fuelButton(_ action: @escaping () -> Void) -> CPBarButton {
+        CPBarButton(title: CarPlayMapping.text("carplay.fuel")) { _ in action() }
     }
 
     static func button(_ title: String, action: @escaping () -> Void) -> CPTextButton {
