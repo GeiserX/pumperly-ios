@@ -28,6 +28,7 @@ struct CheapestNearbyView: View {
         }
         .widgetURL(TimelineMapping.tapURL(for: entry))
         .containerBackground(for: .widget) { Color("WidgetBackground") }
+        .environment(\.stationsAsOf, entry.asOf)
     }
 }
 
@@ -41,6 +42,7 @@ private struct HeaderView: View {
             Text(fuel.label)
                 .lineLimit(1)
                 .foregroundStyle(.secondary)
+            AsOfLabel()
         }
         .font(.caption2.weight(.semibold))
     }

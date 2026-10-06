@@ -23,6 +23,8 @@ struct CheapestNearbyProvider: TimelineProvider {
 
     /// A live fix first. Only when the widget may use location but no fix came in time does the
     /// last position the app saved stand in. Without permission no position is used or sent.
+    /// A good answer is cached on the device; a failed fetch shows the cached stations instead
+    /// when they are for this fuel, at most a day old and taken near this position.
     static func loadEntry(now: Date = Date()) async -> CheapestNearbyEntry {
         let settings = SharedSettings()
         let fuel = settings.fuel
@@ -38,12 +40,17 @@ struct CheapestNearbyProvider: TimelineProvider {
         case .denied:
             return TimelineMapping.entry(date: now, fuel: fuel, result: nil)
         }
+        let cache = StationCache.appGroup
         do {
             let stations = try await StationsAPI.fetchNearest(latitude: coordinate.latitude,
                                                               longitude: coordinate.longitude, fuel: fuel)
+            try? cache?.save(StationCache.Snapshot(savedAt: now, fuel: fuel, latitude: coordinate.latitude,
+                                                   longitude: coordinate.longitude, stations: stations))
             return TimelineMapping.entry(date: now, fuel: fuel, result: .success(stations))
         } catch {
-            return TimelineMapping.entry(date: now, fuel: fuel, result: .failure(error))
+            return TimelineMapping.entry(date: now, fuel: fuel, result: .failure(error),
+                                         cached: cache?.load(fuel: fuel, now: now),
+                                         near: (coordinate.latitude, coordinate.longitude))
         }
     }
 }
