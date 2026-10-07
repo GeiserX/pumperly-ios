@@ -3,6 +3,8 @@ import CoreLocation
 /// One when-in-use location fix with a timeout, for App Intents (Siri, Shortcuts, Spotlight).
 /// It never asks for permission: Siri may run the intent with no screen to show the prompt,
 /// so without permission it answers `.denied` and the app asks when the user opens it.
+/// Siri runs the intent with the app in the background, where when-in-use permission may give no
+/// fresh fix: then the timeout ends the wait and the caller falls back to the app's saved position.
 @MainActor
 final class OneShotLocator: NSObject, CLLocationManagerDelegate {
     enum Outcome: Equatable {

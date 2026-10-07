@@ -102,7 +102,7 @@ final class IntentsTests: XCTestCase {
                                        result: .success([station("1", name: "No price", price: nil, km: 1)]))
         XCTAssertEqual(answer, .empty)
         XCTAssertEqual(CheapestNearbyLookup.dialog(for: answer, fuel: .h2, bundle: try englishBundle),
-                       "No stations with \(FuelType.h2.label) within 10 km.")
+                       "No stations with \(FuelType.h2.label) within \(Int(StationsAPI.radiusKm)) km.")
     }
 
     func testDeniedLocationSendsNothingAndAsksToAllowIt() async throws {
@@ -167,6 +167,21 @@ final class IntentsTests: XCTestCase {
                 keys[language] = Set(strings.keys)
             }
             XCTAssertEqual(keys["en"], keys["es"], table)
+        }
+    }
+
+    /// The open intent restores the last page; it must not promise the route planner.
+    func testOpenIntentPromisesNoScreenItCannotOpen() throws {
+        XCTAssertEqual(PumperlyScreen.allCases, [.app])
+        let app = Bundle(for: ShellModel.self)
+        for (language, banned) in [("en", "planner"), ("es", "planificador")] {
+            let url = try XCTUnwrap(app.url(forResource: "Intents", withExtension: "strings",
+                                            subdirectory: nil, localization: language))
+            let strings = try XCTUnwrap(NSDictionary(contentsOf: url) as? [String: String])
+            for key in ["intent.open.title", "intent.open.description", "param.screen", "screen.app", "shortcut.open"] {
+                let text = try XCTUnwrap(strings[key], "\(language) \(key)")
+                XCTAssertFalse(text.lowercased().contains(banned), "\(language) \(key): \(text)")
+            }
         }
     }
 

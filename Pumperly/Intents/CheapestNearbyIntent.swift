@@ -80,9 +80,12 @@ enum CheapestNearbyLookup {
         func text(_ key: String) -> String {
             bundle.localizedString(forKey: key, value: nil, table: "Intents")
         }
+        func empty() -> String {
+            String(format: text("dialog.empty"), fuel.label, Int(StationsAPI.radiusKm))
+        }
         switch answer {
         case .stations(let rows):
-            guard let first = rows.first else { return String(format: text("dialog.empty"), fuel.label) }
+            guard let first = rows.first else { return empty() }
             if fuel.hasPrice {
                 let key = isSoldByTheLitre(fuel) ? "dialog.priced.litre" : "dialog.priced"
                 return String(format: text(key), fuel.label, first.name, first.valueText ?? "", first.distanceText)
@@ -92,7 +95,7 @@ enum CheapestNearbyLookup {
             }
             return String(format: text("dialog.ev"), first.name, first.distanceText)
         case .empty:
-            return String(format: text("dialog.empty"), fuel.label)
+            return empty()
         case .needsLocation:
             return text("dialog.needsLocation")
         case .locationUnavailable:
