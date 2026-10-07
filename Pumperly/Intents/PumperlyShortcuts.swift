@@ -26,7 +26,7 @@ struct PumperlyShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: OpenPumperlyIntent(),
             phrases: [
-                "Plan a route with \(.applicationName)",
+                "Go back to \(.applicationName)",
             ],
             shortTitle: LocalizedStringResource("shortcut.open", table: "Intents"),
             systemImageName: "map")

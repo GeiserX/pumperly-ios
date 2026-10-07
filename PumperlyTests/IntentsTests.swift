@@ -170,17 +170,24 @@ final class IntentsTests: XCTestCase {
         }
     }
 
-    /// The open intent restores the last page; it must not promise the route planner.
+    /// The open intent restores the last page; neither it nor any phrase may promise route planning.
     func testOpenIntentPromisesNoScreenItCannotOpen() throws {
         XCTAssertEqual(PumperlyScreen.allCases, [.app])
         let app = Bundle(for: ShellModel.self)
-        for (language, banned) in [("en", "planner"), ("es", "planificador")] {
-            let url = try XCTUnwrap(app.url(forResource: "Intents", withExtension: "strings",
-                                            subdirectory: nil, localization: language))
-            let strings = try XCTUnwrap(NSDictionary(contentsOf: url) as? [String: String])
-            for key in ["intent.open.title", "intent.open.description", "param.screen", "screen.app", "shortcut.open"] {
-                let text = try XCTUnwrap(strings[key], "\(language) \(key)")
-                XCTAssertFalse(text.lowercased().contains(banned), "\(language) \(key): \(text)")
+        for (language, banned) in [("en", ["planner", "route"]), ("es", ["planificador", "ruta"])] {
+            func table(_ name: String) throws -> [String: String] {
+                let url = try XCTUnwrap(app.url(forResource: name, withExtension: "strings",
+                                                subdirectory: nil, localization: language))
+                return try XCTUnwrap(NSDictionary(contentsOf: url) as? [String: String])
+            }
+            let intents = try table("Intents")
+            var texts = try ["intent.open.title", "intent.open.description", "param.screen", "screen.app",
+                             "shortcut.open"].map { try XCTUnwrap(intents[$0], "\(language) \($0)") }
+            texts += try table("AppShortcuts").values
+            for text in texts {
+                for word in banned {
+                    XCTAssertFalse(text.lowercased().contains(word), "\(language): \(text)")
+                }
             }
         }
     }
