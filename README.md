@@ -9,7 +9,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/GeiserX/pumperly-ios?style=flat-square" alt="License"></a>
 </p>
 
-Pumperly for iOS is the iPhone app for [Pumperly](https://pumperly.com), the open-source fuel and EV route planner that finds the cheapest place to refuel along your route. It shows the web app in a native SwiftUI shell and adds a "Cheapest nearby" home screen widget with live prices for your fuel. The first builds go to TestFlight, then to the App Store.
+Pumperly for iOS is the iPhone app for [Pumperly](https://pumperly.com), the open-source fuel and EV route planner that finds the cheapest place to refuel along your route. It shows the web app in a native SwiftUI shell and adds what a phone can do better than a tab: a "Cheapest nearby" widget for the Home Screen, the Lock Screen and the Apple Watch, Siri and Shortcuts, and an offline memory of the stations around you. The first builds go to TestFlight, then to the App Store.
 
 <p align="center">
   <img src="docs/images/screenshot-route.png" alt="Route planner in the app" width="240">
@@ -22,6 +22,11 @@ Pumperly for iOS is the iPhone app for [Pumperly](https://pumperly.com), the ope
 - The full Pumperly route planner, with fuel and EV prices along the route, from the live site.
 - A "Cheapest nearby" widget in small and medium sizes: the cheapest of the 50 nearest stations within 10 km for your fuel, refreshed about hourly. Tapping a station opens its page in the app.
 - One native setting, the widget's fuel, asked once on first launch and reachable from the widget or by holding the app icon.
+- Siri, Shortcuts and Spotlight: ask for the cheapest fuel near you, change the widget fuel, or go back to Pumperly, without opening a screen first.
+- Lock Screen widgets in the circular, rectangular and inline sizes, with the cheapest price around you.
+- An Apple Watch app with the three cheapest stations nearby, plus complications for the watch face. The fuel follows the iPhone.
+- Works offline: the app and the widget show the last known cheapest stations nearby, with the time they were fetched.
+- CarPlay support is in the code and switched on once Apple grants the fueling entitlement.
 - Native location: the site and the widget share one iOS permission, and only pumperly.com pages can read it.
 - Only `https://pumperly.com` loads inside the app; every other link opens in Safari or the app that owns it.
 - Universal links: pumperly.com links open in the app once it is installed.
@@ -63,8 +68,10 @@ xcodebuild test -project Pumperly.xcodeproj -scheme Pumperly \
 | `DIST_CERTIFICATE_PASSWORD` | Password of that `.p12` |
 | `PROFILE_APP` | App Store profile "Pumperly App Store" for `com.pumperly.app`, base64 |
 | `PROFILE_WIDGET` | App Store profile "Pumperly Widget App Store" for `com.pumperly.app.widget`, base64 |
+| `PROFILE_WATCH_APP` | App Store profile "Pumperly Watch App Store" for `com.pumperly.app.watchkitapp`, base64 |
+| `PROFILE_WATCH_WIDGET` | App Store profile "Pumperly Watch Widget App Store" for `com.pumperly.app.watchkitapp.widget`, base64 |
 
-Both profiles need the App Group `group.com.pumperly.app`; the app's profile also needs Associated Domains.
+All four profiles need the App Group `group.com.pumperly.app`; the app's profile also needs Associated Domains.
 
 ## Related projects
 
