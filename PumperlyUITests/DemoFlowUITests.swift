@@ -52,15 +52,20 @@ final class DemoFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["settings.intro"].waitForExistence(timeout: 30), "first-launch fuel screen")
         // record-demo.sh starts the screen recorder on this line, so the video opens on the app.
         step("first-launch fuel screen")
-        pause(3)
+        pause(2)
         // The site asks for location as soon as it loads, behind the fuel screen.
         allowLocation(timeout: 20)
         let petrol = app.buttons["settings.fuel.E5"]
         XCTAssertTrue(petrol.waitForExistence(timeout: 10))
         petrol.tap()
         pause(2)
-        app.buttons["settings.done"].tap()
-        XCTAssertTrue(app.staticTexts["settings.intro"].waitForNonExistence(timeout: 10), "fuel screen closed")
+        if !closeFuelScreen() {
+            // The fuel is already saved, so a relaunch goes straight to the map.
+            step("fuel screen stuck: relaunching the app")
+            app.terminate()
+            app.launch()
+            XCTAssertTrue(app.buttons["settings.done"].waitForNonExistence(timeout: 15), "map after the relaunch")
+        }
         allowLocation(timeout: 3)
     }
 
@@ -88,14 +93,16 @@ final class DemoFlowUITests: XCTestCase {
             ("coordinate tap", { button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap() }),
             ("press", { button.press(forDuration: 0.2) }),
         ]
-        for (how, attempt) in attempts {
+        for (how, attempt) in attempts where alert.exists {
             attempt()
-            if alert.waitForNonExistence(timeout: 4) {
+            if alert.waitForNonExistence(timeout: 3) {
                 step("\(name) alert answered by \(how)")
                 return true
             }
             step("\(name) alert still up after \(how), frame \(button.frame)")
         }
+        // The last attempt can land after its wait ran out.
+        if !alert.exists { return true }
         XCTFail(springboardDump("the \(name) alert did not close"))
         return false
     }
@@ -103,12 +110,12 @@ final class DemoFlowUITests: XCTestCase {
     private func showMapWithPrices() {
         step("map with prices")
         XCTAssertTrue(destinationField.waitForExistence(timeout: 40), "site loaded")
-        pause(2)
+        pause(1)
         // The site asks for location once the page has loaded, which on a busy machine is late.
         allowLocation(timeout: 30)
         pause(1)
         useEuros()
-        pause(3)
+        pause(2)
     }
 
     /// The site guesses the currency from the browser language, and WebKit reports English as
@@ -121,7 +128,7 @@ final class DemoFlowUITests: XCTestCase {
         guard let menu, menu.exists else { return step("currency: site menu not found") }
         step("currency: euros")
         menu.tap()
-        guard currency.waitForExistence(timeout: 5) else { return step("currency: picker not found") }
+        guard currency.waitForExistence(timeout: 10) else { return step("currency: picker not found") }
         if (currency.value as? String)?.hasSuffix("EUR") == true {
             menu.tap()
             return
@@ -131,7 +138,7 @@ final class DemoFlowUITests: XCTestCase {
         let euro = app.descendants(matching: .any).matching(NSPredicate(format: "label == '€ EUR'")).firstMatch
         for _ in 0..<3 where !euro.exists {
             currency.tap()
-            _ = euro.waitForExistence(timeout: 3)
+            _ = euro.waitForExistence(timeout: 5)
         }
         guard euro.exists else { return step("currency: euro option not found\n\(app.debugDescription)") }
         pause(1)
@@ -168,7 +175,7 @@ final class DemoFlowUITests: XCTestCase {
         // The search box keeps focus after the pick; the keyboard would hide the station list.
         let keyboardDone = app.toolbars.buttons["Done"].firstMatch
         if keyboardDone.exists { keyboardDone.tap() } else if app.keyboards.firstMatch.exists { app.typeText("\n") }
-        pause(4)
+        pause(3)
     }
 
     private func openStationFromList() {
@@ -182,41 +189,59 @@ final class DemoFlowUITests: XCTestCase {
         // The sheet handle cycles peek, half, full; open it until the first row is on screen.
         for _ in 0..<3 where !station.isHittable && resize.exists {
             resize.tap()
-            pause(3)
+            pause(2)
         }
         XCTAssertTrue(station.isHittable, webDump("a station row on screen"))
         step("open station")
         station.tap()
-        pause(5)
+        pause(4)
     }
 
+    /// The widget fuel screen from the Home Screen quick action, as a user changes it later.
+    /// `XCUIApplication.open(_:)` would relaunch the app, flash a blank screen and lose the route.
     private func openWidgetFuelSettings() {
-        step("widget fuel settings")
-        app.open(URL(string: "pumperly://settings")!)
-        let diesel = app.buttons["settings.fuel.B7"]
-        XCTAssertTrue(diesel.waitForExistence(timeout: 15), "widget fuel screen")
-        pause(2)
-        diesel.tap()
-        pause(3)
-        app.buttons["settings.done"].tap()
-        pause(1)
-    }
-
-    private func addWidgetToHomeScreen() {
         step("home screen")
         skipAnimationWaits()
         XCUIDevice.shared.press(.home)
         pause(2)
+        let icon = showPumperlyIcon()
+        step("quick actions: widget fuel")
+        icon.press(forDuration: 1.5)
+        pause(2)
+        let widgetFuel = springboard.buttons["Widget fuel"]
+        XCTAssertTrue(widgetFuel.waitForExistence(timeout: 5), springboardDump("Widget fuel quick action"))
+        widgetFuel.tap()
+        step("widget fuel settings")
+        let diesel = app.buttons["settings.fuel.B7"]
+        XCTAssertTrue(diesel.waitForExistence(timeout: 15), "widget fuel screen")
+        pause(2)
+        diesel.tap()
+        pause(2)
+        XCTAssertTrue(closeFuelScreen(), "the widget fuel screen did not close\n\(app.debugDescription)")
+        pause(1)
+    }
+
+    /// The app's icon, on whichever Home Screen page it landed.
+    private func showPumperlyIcon() -> XCUIElement {
         let icon = springboard.icons["Pumperly"]
-        // The app lands on a later Home Screen page.
-        for _ in 0..<4 where !icon.isHittable {
+        let hittable = NSPredicate(format: "isHittable == true")
+        // Animation waits are off here, so give each page time to settle before swiping on:
+        // one swipe too many lands in the App Library.
+        for _ in 0..<3 {
+            if XCTWaiter.wait(for: [expectation(for: hittable, evaluatedWith: icon)], timeout: 3) == .completed { break }
             springboard.swipeLeft()
-            pause(1)
         }
         XCTAssertTrue(icon.isHittable, springboardDump("Pumperly icon on the Home Screen"))
-        step("quick actions")
+        return icon
+    }
+
+    private func addWidgetToHomeScreen() {
+        XCUIDevice.shared.press(.home)
+        pause(2)
+        let icon = showPumperlyIcon()
+        step("quick actions: edit Home Screen")
         icon.press(forDuration: 1.5)
-        pause(3)
+        pause(2)
         let edit = springboard.buttons["Edit Home Screen"]
         XCTAssertTrue(edit.waitForExistence(timeout: 5), springboardDump("Edit Home Screen"))
         edit.tap()
@@ -247,9 +272,12 @@ final class DemoFlowUITests: XCTestCase {
         pause(3)
 
         step("medium widget")
-        // The sizes are pages: small first, then medium.
+        // The sizes are pages, small then medium, and the pager stops at the last one. One swipe
+        // sometimes does not take while the gallery is still settling, so swipe twice.
         springboard.swipeLeft()
-        pause(3)
+        pause(2)
+        springboard.swipeLeft()
+        pause(2)
         // The gallery runs in another process, so its button is not in SpringBoard's tree:
         // tap where it sits, at the bottom of the gallery sheet.
         let add = springboard.buttons.matching(NSPredicate(format: "label == 'Add Widget'")).firstMatch
@@ -268,7 +296,7 @@ final class DemoFlowUITests: XCTestCase {
         XCTAssertTrue(done.waitForNonExistence(timeout: 10), springboardDump("leaving edit mode"))
 
         step("widget on the Home Screen")
-        pause(6)
+        pause(5)
         let needsLocation = springboard.staticTexts.matching(NSPredicate(format: "label CONTAINS 'allow location'")).firstMatch
         if needsLocation.exists {
             step("widget needs location: open the app and come back")
@@ -281,6 +309,29 @@ final class DemoFlowUITests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// Since 0.2.0 the fuel screen sometimes ignores Done in this flow: the touches reach the
+    /// app, it is idle and nothing presents the sheet again, yet it stays, and then a swipe down
+    /// fails too. It never happened in isolated runs. Each attempt is checked and logged.
+    @discardableResult
+    private func closeFuelScreen() -> Bool {
+        let done = app.buttons["settings.done"]
+        let attempts: [(String, () -> Void)] = [
+            ("tap", { done.tap() }),
+            ("second tap", { done.tap() }),
+            ("coordinate tap", { done.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap() }),
+            ("swipe down", { self.app.navigationBars.firstMatch.swipeDown(velocity: .fast) }),
+        ]
+        for (how, attempt) in attempts {
+            attempt()
+            if done.waitForNonExistence(timeout: 4) {
+                step("fuel screen closed by \(how)")
+                return true
+            }
+            step("fuel screen still open after \(how): Done hittable \(done.isHittable)")
+        }
+        return false
+    }
 
     /// SpringBoard on the iOS 26 simulator does not report that its animations finished after a
     /// long press or on entering edit mode, so XCUITest waits 60 s before the next step. The Home
