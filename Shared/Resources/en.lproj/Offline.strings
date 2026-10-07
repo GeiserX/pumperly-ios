@@ -1,0 +1,7 @@
+/* Offline screen: the last stations fetched near the user. %@ is a time, or a weekday and a time. */
+"offline.header" = "Last known cheapest nearby, as of %@";
+"offline.header.ev" = "Last known chargers nearby, as of %@";
+"offline.openInMaps" = "Open in Maps";
+
+/* Widget: the rows come from the offline cache. %@ is a time. */
+"offline.asOf" = "As of %@";
