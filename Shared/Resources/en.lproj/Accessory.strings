@@ -1,0 +1,22 @@
+/* Lock Screen widget: short fuel codes for the one-line (inline) family */
+"short.B7" = "B7";
+"short.B7_PREMIUM" = "B7+";
+"short.B10" = "B10";
+"short.B_AGRICULTURAL" = "Diesel B";
+"short.HVO" = "HVO";
+"short.E5" = "E5";
+"short.E5_PREMIUM" = "E5+";
+"short.E10" = "E10";
+"short.E5_98" = "98";
+"short.E98_E10" = "98 E10";
+"short.LPG" = "LPG";
+"short.CNG" = "CNG";
+"short.LNG" = "LNG";
+"short.H2" = "H2";
+"short.EV" = "EV";
+"short.ADBLUE" = "AdBlue";
+
+/* Lock Screen widget: short messages when there is no station to show */
+"message.needsLocation" = "No location";
+"message.empty" = "Nothing nearby";
+"message.unavailable" = "Offline";
