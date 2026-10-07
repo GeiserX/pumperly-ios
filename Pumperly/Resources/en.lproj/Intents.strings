@@ -1,0 +1,30 @@
+/* App Intents: Siri, Shortcuts and Spotlight */
+"intent.cheapest.title" = "Find the cheapest fuel nearby";
+"intent.cheapest.description" = "Finds the cheapest station near you for a fuel, or the nearest charger for EV charging.";
+"intent.open.title" = "Open Pumperly";
+"intent.open.description" = "Opens Pumperly where you left it.";
+"intent.setFuel.title" = "Set the widget fuel";
+"intent.setFuel.description" = "Chooses the fuel the Cheapest nearby widget shows.";
+
+"param.fuel" = "Fuel";
+"param.screen" = "Open";
+"type.fuel" = "Fuel";
+"type.screen" = "Screen";
+"screen.app" = "Pumperly";
+
+"shortcut.cheapest" = "Cheapest fuel nearby";
+"shortcut.setFuel" = "Widget fuel";
+"shortcut.open" = "Open Pumperly";
+
+/* Spoken answers. %1$@ fuel, %2$@ station, %3$@ price, %4$@ distance. */
+"dialog.priced.litre" = "Cheapest %1$@ near you: %2$@, %3$@ per litre, %4$@ away.";
+"dialog.priced" = "Cheapest %1$@ near you: %2$@, %3$@, %4$@ away.";
+/* %1$@ station, %2$@ charger power, %3$@ distance. */
+"dialog.ev.power" = "Nearest charger: %1$@, %2$@, %3$@ away.";
+"dialog.ev" = "Nearest charger: %1$@, %2$@ away.";
+/* %1$@ fuel, %2$d search radius in km. */
+"dialog.empty" = "No stations with %1$@ within %2$d km.";
+"dialog.needsLocation" = "Open Pumperly and allow location to find stations near you.";
+"dialog.locationUnavailable" = "Your location is not available right now. Try again in a moment.";
+"dialog.unavailable" = "Prices are unavailable right now. Try again later.";
+"dialog.setFuel" = "The widget now shows %@.";

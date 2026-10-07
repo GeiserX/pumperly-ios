@@ -5,6 +5,8 @@ import UIKit
 struct PumperlyApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
+    init() { PumperlyShortcuts.updateAppShortcutParameters() }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
