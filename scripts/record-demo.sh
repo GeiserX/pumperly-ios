@@ -65,6 +65,25 @@ echo "Building for testing..."
 xcodebuild build-for-testing -project Pumperly.xcodeproj -scheme Pumperly \
   -destination "platform=iOS Simulator,id=$sim" -derivedDataPath "$derived" -quiet
 
+# A freshly erased simulator spends its first minutes on media and photo analysis, which
+# makes the app and XCUITest crawl. Wait until its own processes go quiet (up to 3 minutes).
+settle() {
+  local launchd busy quiet=0
+  launchd=$(pgrep -f "launchd_sim .*Devices/$sim/" | head -1) || {
+    echo "Could not find the simulator's launchd_sim; not waiting for it to settle" >&2
+    return 0
+  }
+  for _ in $(seq 90); do
+    busy=$(ps -Ao ppid=,pcpu= | awk -v p="$launchd" '$1 == p { s += $2 } END { printf "%d", s }')
+    if ((busy < 40)); then quiet=$((quiet + 1)); else quiet=0; fi
+    ((quiet >= 5)) && return 0
+    sleep 2
+  done
+  echo "The simulator is still busy after 3 minutes; recording anyway"
+}
+echo "Waiting for the simulator to settle..."
+settle
+
 rm -f "$out"
 rm -rf "$results"
 echo "Running the demo flow..."
