@@ -213,7 +213,7 @@ final class DemoFlowUITests: XCTestCase {
         widgetFuel.tap()
         step("widget fuel settings")
         let diesel = app.buttons["settings.fuel.B7"]
-        XCTAssertTrue(diesel.waitForExistence(timeout: 15), "widget fuel screen")
+        XCTAssertTrue(diesel.waitForExistence(timeout: 15), "widget fuel screen not found\n\(app.debugDescription)")
         pause(2)
         diesel.tap()
         pause(2)
@@ -227,9 +227,9 @@ final class DemoFlowUITests: XCTestCase {
         let hittable = NSPredicate(format: "isHittable == true")
         // Animation waits are off here, so give each page time to settle before swiping on:
         // one swipe too many lands in the App Library.
-        for _ in 0..<3 {
+        for page in 0..<3 {
             if XCTWaiter.wait(for: [expectation(for: hittable, evaluatedWith: icon)], timeout: 3) == .completed { break }
-            springboard.swipeLeft()
+            if page < 2 { springboard.swipeLeft() }
         }
         XCTAssertTrue(icon.isHittable, springboardDump("Pumperly icon on the Home Screen"))
         return icon
@@ -323,6 +323,8 @@ final class DemoFlowUITests: XCTestCase {
             ("swipe down", { self.app.navigationBars.firstMatch.swipeDown(velocity: .fast) }),
         ]
         for (how, attempt) in attempts {
+            // A previous attempt can close the screen after its wait ran out.
+            if !done.exists { return true }
             attempt()
             if done.waitForNonExistence(timeout: 4) {
                 step("fuel screen closed by \(how)")
