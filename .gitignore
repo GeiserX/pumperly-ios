@@ -19,3 +19,6 @@ build/
 .beads/issues.jsonl
 .beads/interactions.jsonl
 .beads/events.jsonl
+
+# scripts/record-demo.sh output
+out/
