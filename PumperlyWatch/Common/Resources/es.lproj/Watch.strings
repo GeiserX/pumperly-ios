@@ -1,0 +1,17 @@
+/* App del reloj */
+"watch.title" = "Lo más barato cerca";
+"watch.fuel" = "Combustible";
+"watch.changeFuel" = "Cambiar combustible";
+"watch.loading" = "Buscando gasolineras…";
+"watch.needsLocation" = "Permite la ubicación de Pumperly en tu reloj para ver las gasolineras cercanas.";
+"watch.empty" = "No hay gasolineras con este combustible a menos de 10 km.";
+"watch.offline" = "Los precios no están disponibles ahora. Comprueba la conexión y vuelve a intentarlo.";
+"watch.retry" = "Reintentar";
+"watch.refresh" = "Actualizar";
+
+/* Complicaciones */
+"watch.widget.name" = "Lo más barato cerca";
+"watch.widget.description" = "La gasolinera más barata cerca de ti para tu combustible.";
+"watch.short.needsLocation" = "Sin ubicación";
+"watch.short.empty" = "Nada a 10 km";
+"watch.short.offline" = "Sin conexión";

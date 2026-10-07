@@ -45,6 +45,8 @@ struct SettingsView: View {
             }
             .navigationTitle(Text("settings.title"))
             .navigationBarTitleDisplayMode(.inline)
+            // Also covers a watch app installed after the fuel was chosen.
+            .onAppear { WatchSync.shared.send(fuel: fuel) }
             .onDisappear { SharedSettings().hasChosenFuel = true }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -64,5 +66,6 @@ struct SettingsView: View {
         SharedSettings().fuel = option
         SharedSettings().hasChosenFuel = true
         WidgetCenter.shared.reloadTimelines(ofKind: "CheapestNearby")
+        WatchSync.shared.send(fuel: option)
     }
 }

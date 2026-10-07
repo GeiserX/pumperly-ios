@@ -1,0 +1,17 @@
+/* Watch app */
+"watch.title" = "Cheapest nearby";
+"watch.fuel" = "Fuel";
+"watch.changeFuel" = "Change fuel";
+"watch.loading" = "Finding stations…";
+"watch.needsLocation" = "Allow location for Pumperly on your watch to see stations near you.";
+"watch.empty" = "No stations with this fuel within 10 km.";
+"watch.offline" = "Prices are unavailable right now. Check the connection and try again.";
+"watch.retry" = "Try again";
+"watch.refresh" = "Refresh";
+
+/* Complications */
+"watch.widget.name" = "Cheapest nearby";
+"watch.widget.description" = "The cheapest station near you for your fuel.";
+"watch.short.needsLocation" = "No location";
+"watch.short.empty" = "None within 10 km";
+"watch.short.offline" = "Offline";
