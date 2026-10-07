@@ -1,0 +1,8 @@
+/* Frases de Siri. Las claves son las frases de PumperlyShortcuts.swift. */
+"Cheapest fuel nearby in ${applicationName}" = "Gasolina más barata cerca en ${applicationName}";
+"Find the cheapest fuel with ${applicationName}" = "Busca el combustible más barato con ${applicationName}";
+"Cheapest ${fuel} nearby in ${applicationName}" = "${fuel} al mejor precio cerca en ${applicationName}";
+"Where is the cheapest ${fuel} in ${applicationName}" = "Dónde repostar ${fuel} más barato con ${applicationName}";
+"Set the widget fuel in ${applicationName}" = "Cambia el combustible del widget en ${applicationName}";
+"Change the ${applicationName} widget fuel" = "Elige el combustible del widget de ${applicationName}";
+"Go back to ${applicationName}" = "Vuelve a ${applicationName}";
