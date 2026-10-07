@@ -1,0 +1,15 @@
+/* Pantalla de CarPlay. En carplay.title %@ es el nombre del combustible; en carplay.empty.message, el radio de búsqueda. */
+"carplay.title" = "Lo más barato cerca · %@";
+"carplay.loading" = "Buscando gasolineras cerca de ti…";
+"carplay.directions" = "Cómo llegar";
+"carplay.fuel" = "Combustible";
+"carplay.fuel.title" = "Elige combustible";
+"carplay.selected" = "Elegido";
+"carplay.retry" = "Reintentar";
+"carplay.changeFuel" = "Cambiar combustible";
+"carplay.needsLocation.title" = "Falta la ubicación";
+"carplay.needsLocation.message" = "Abre Pumperly en tu iPhone y permite la ubicación para ver las gasolineras cercanas.";
+"carplay.empty.title" = "No hay gasolineras cerca";
+"carplay.empty.message" = "No hay gasolineras con este combustible a menos de %@ km.";
+"carplay.offline.title" = "Precios no disponibles";
+"carplay.offline.message" = "Comprueba la conexión de tu iPhone y vuelve a intentarlo.";
