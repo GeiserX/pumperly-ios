@@ -45,6 +45,15 @@ jobs:
             | tee build/test.log \
             | grep -E "error:|warning: .*\.swift|Test Case .*(passed|failed)|Executed [0-9]+ tests|\*\* TEST"
 
+      - name: Build the watch app
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Pumperly.xcodeproj -scheme PumperlyWatch \
+            -destination "generic/platform=watchOS Simulator" -derivedDataPath build/dd-watch \
+            CODE_SIGNING_ALLOWED=NO \
+            | grep -E "error:|warning: .*\.swift|\*\* BUILD"
+
       - name: Build the Release configuration
         run: |
           set -o pipefail

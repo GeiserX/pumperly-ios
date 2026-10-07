@@ -1,0 +1,7 @@
+/* Pantalla sin conexión: las últimas gasolineras obtenidas cerca. %@ es una hora, o un día y una hora. */
+"offline.header" = "Lo más barato cerca, último dato: %@";
+"offline.header.ev" = "Puntos de carga cercanos, último dato: %@";
+"offline.openInMaps" = "Abrir en Mapas";
+
+/* Widget: las filas vienen de la caché sin conexión. %@ es una hora. */
+"offline.asOf" = "Último dato: %@";

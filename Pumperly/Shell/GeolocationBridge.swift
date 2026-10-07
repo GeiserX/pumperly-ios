@@ -14,6 +14,7 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
     weak var webView: WKWebView?
     private let manager = CLLocationManager()
     private let settings = SharedSettings()
+    private let prefetcher = NearbyPrefetcher()
     private var oneShotIDs: [Int] = []
     private var watchIDs: Set<Int> = []
 
@@ -111,6 +112,7 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
             manager.requestWhenInUseAuthorization()
         case .denied, .restricted:
             settings.clearLocation()
+            StationCache.appGroup?.clear()
             reject(oneShotIDs + watchIDs, code: 1, message: "Location permission denied")
             oneShotIDs.removeAll()
             watchIDs.removeAll()
@@ -123,6 +125,7 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
     private func deliver(_ location: CLLocation) {
         let c = location.coordinate
         settings.saveLocation(latitude: c.latitude, longitude: c.longitude)
+        prefetcher.positionDelivered(location)
         let position: [String: Any] = [
             "coords": [
                 "latitude": c.latitude,
@@ -160,7 +163,10 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
         let status = manager.authorizationStatus
         MainActor.assumeIsolated {
             // Permission withdrawn: the widget must not keep using a position saved earlier.
-            if status == .denied || status == .restricted { settings.clearLocation() }
+            if status == .denied || status == .restricted {
+                settings.clearLocation()
+                StationCache.appGroup?.clear()
+            }
             if !oneShotIDs.isEmpty || !watchIDs.isEmpty { proceed() }
         }
     }

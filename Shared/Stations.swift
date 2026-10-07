@@ -1,7 +1,7 @@
 import Foundation
 
 /// One station from `GET /api/stations/nearest` (a GeoJSON feature, flattened).
-struct Station: Equatable, Sendable {
+struct Station: Codable, Equatable, Sendable {
     let id: String
     let externalId: String
     let country: String

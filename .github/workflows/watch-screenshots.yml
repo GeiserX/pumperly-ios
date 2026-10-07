@@ -1,0 +1,106 @@
+name: Watch screenshots
+
+# App Store Connect asks for Apple Watch screenshots once a build carries a watch app. This
+# runs the watch app on a watch simulator with sample stations (no location, no network) and
+# keeps the screenshots, in English and Spanish, as an artifact. It also runs on pull requests
+# that touch the watch app, so a broken launch shows up before release.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "PumperlyWatch/**"
+      - ".github/workflows/watch-screenshots.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: watch-screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    name: Watch screenshots
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      BUNDLE_ID: com.pumperly.app.watchkitapp
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes
+
+      - name: Install XcodeGen and generate the project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Pick and boot an Apple Watch simulator
+        id: sim
+        run: |
+          # The largest watch on the newest watchOS runtime: an Ultra if there is one.
+          udid=$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          def version(runtime):
+              return [int(p) for p in runtime.split("watchOS-")[1].split("-")]
+          for runtime in sorted((r for r in devices if ".watchOS-" in r), key=version, reverse=True):
+              watches = [d for d in devices[runtime] if d["name"].startswith("Apple Watch")]
+              watches.sort(key=lambda d: ("Ultra" not in d["name"], d["name"]))
+              if watches:
+                  print(watches[0]["udid"], file=sys.stderr)
+                  print(watches[0]["name"], file=sys.stderr)
+                  print(watches[0]["udid"])
+                  sys.exit(0)
+          sys.exit("no Apple Watch simulator available")
+          ')
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b
+
+      - name: Build the watch app for the simulator
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Pumperly.xcodeproj -scheme PumperlyWatch -configuration Debug \
+            -destination "platform=watchOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/dd-watch \
+            | grep -E "error:|warning: .*\.swift|\*\* BUILD"
+
+      - name: Take the screenshots
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+        run: |
+          set -euo pipefail
+          xcrun simctl install "$UDID" build/dd-watch/Build/Products/Debug-watchsimulator/PumperlyWatch.app
+          xcrun simctl status_bar "$UDID" override --time "9:41" || true
+          mkdir -p screenshots
+          # capture <name> <language> <locale> [extra VAR=value for the app...]
+          capture() {
+            local name=$1 language=$2 locale=$3
+            shift 3
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+            env SIMCTL_CHILD_PUMPERLY_UITEST_SAMPLE=1 "$@" \
+              xcrun simctl launch "$UDID" "$BUNDLE_ID" -AppleLanguages "($language)" -AppleLocale "$locale"
+            sleep 12
+            xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
+          }
+          capture list-en en en_US
+          capture picker-en en en_US SIMCTL_CHILD_PUMPERLY_UITEST_SHOW_PICKER=1
+          capture list-es es es_ES
+          capture picker-es es es_ES SIMCTL_CHILD_PUMPERLY_UITEST_SHOW_PICKER=1
+          for file in screenshots/*.png; do
+            # An empty or missing capture fails the job.
+            test "$(stat -f %z "$file")" -gt 10000
+            sips -g pixelWidth -g pixelHeight "$file" | tail -2 | xargs echo "$file"
+          done
+
+      - name: Keep the screenshots
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: watch-screenshots
+          path: screenshots/*.png
+          retention-days: 30

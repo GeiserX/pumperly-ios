@@ -23,6 +23,8 @@ jobs:
       TEAM_ID: 624WUVM8B4
       APP_PROFILE_NAME: Pumperly App Store
       WIDGET_PROFILE_NAME: Pumperly Widget App Store
+      WATCH_APP_PROFILE_NAME: Pumperly Watch App Store
+      WATCH_WIDGET_PROFILE_NAME: Pumperly Watch Widget App Store
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,10 +63,12 @@ jobs:
           DIST_CERTIFICATE_PASSWORD: ${{ secrets.DIST_CERTIFICATE_PASSWORD }}
           PROFILE_APP: ${{ secrets.PROFILE_APP }}
           PROFILE_WIDGET: ${{ secrets.PROFILE_WIDGET }}
+          PROFILE_WATCH_APP: ${{ secrets.PROFILE_WATCH_APP }}
+          PROFILE_WATCH_WIDGET: ${{ secrets.PROFILE_WATCH_WIDGET }}
         run: |
           missing=0
           for name in APPSTORE_ISSUER_ID APPSTORE_KEY_ID APPSTORE_PRIVATE_KEY DIST_CERTIFICATE_P12 \
-                      DIST_CERTIFICATE_PASSWORD PROFILE_APP PROFILE_WIDGET; do
+                      DIST_CERTIFICATE_PASSWORD PROFILE_APP PROFILE_WIDGET PROFILE_WATCH_APP PROFILE_WATCH_WIDGET; do
             if [ -z "${!name}" ]; then echo "::error::Secret $name is not set"; missing=1; fi
           done
           exit $missing
@@ -94,11 +98,13 @@ jobs:
         env:
           PROFILE_APP: ${{ secrets.PROFILE_APP }}
           PROFILE_WIDGET: ${{ secrets.PROFILE_WIDGET }}
+          PROFILE_WATCH_APP: ${{ secrets.PROFILE_WATCH_APP }}
+          PROFILE_WATCH_WIDGET: ${{ secrets.PROFILE_WATCH_WIDGET }}
         run: |
           for dir in "$HOME/Library/MobileDevice/Provisioning Profiles" \
                      "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
             mkdir -p "$dir"
-            for var in PROFILE_APP PROFILE_WIDGET; do
+            for var in PROFILE_APP PROFILE_WIDGET PROFILE_WATCH_APP PROFILE_WATCH_WIDGET; do
               printf '%s' "${!var}" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
               uuid=$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" | plutil -extract UUID raw -)
               cp "$RUNNER_TEMP/profile.mobileprovision" "$dir/$uuid.mobileprovision"
@@ -136,6 +142,8 @@ jobs:
             <dict>
               <key>com.pumperly.app</key><string>${APP_PROFILE_NAME}</string>
               <key>com.pumperly.app.widget</key><string>${WIDGET_PROFILE_NAME}</string>
+              <key>com.pumperly.app.watchkitapp</key><string>${WATCH_APP_PROFILE_NAME}</string>
+              <key>com.pumperly.app.watchkitapp.widget</key><string>${WATCH_WIDGET_PROFILE_NAME}</string>
             </dict>
             <key>uploadSymbols</key><true/>
           </dict>
