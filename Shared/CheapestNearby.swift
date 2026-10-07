@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import WidgetKit
 
 /// One line of the widget: a station with its price (or charger power) and the page it opens.
@@ -25,6 +26,8 @@ struct CheapestNearbyEntry: TimelineEntry, Equatable {
     let date: Date
     let fuel: FuelType
     let content: Content
+    /// Set when the rows come from the offline cache: the time they were fetched.
+    var asOf: Date? = nil
 }
 
 /// Pure mapping from API results to widget entries, kept apart from WidgetKit and CoreLocation
@@ -38,6 +41,23 @@ enum TimelineMapping {
     /// EV: nearest first, since the API returns no charging price.
     static func rows(from stations: [Station], fuel: FuelType, locale: Locale = .current,
                      limit: Int = maxRows) -> [StationRow] {
+        topStations(from: stations, fuel: fuel, limit: limit).map { row(for: $0, fuel: fuel, locale: locale) }
+    }
+
+    static func row(for station: Station, fuel: FuelType, locale: Locale = .current) -> StationRow {
+        StationRow(
+            id: station.id,
+            name: displayName(station),
+            distanceText: formatDistance(station.distanceKm, locale: locale),
+            valueText: fuel.hasPrice
+                ? station.price.map { formatPrice($0, currency: station.currency, locale: locale) }
+                : station.powerKw.map { formatPower($0, locale: locale) },
+            url: StationsAPI.pageURL(for: station, fuel: fuel)
+        )
+    }
+
+    /// The stations the rows show, in the same order.
+    static func topStations(from stations: [Station], fuel: FuelType, limit: Int = maxRows) -> [Station] {
         let sorted: [Station]
         if fuel.hasPrice {
             sorted = stations.filter { $0.price != nil }.sorted {
@@ -46,17 +66,7 @@ enum TimelineMapping {
         } else {
             sorted = stations.sorted { $0.distanceKm < $1.distanceKm }
         }
-        return sorted.prefix(limit).map { station in
-            StationRow(
-                id: station.id,
-                name: displayName(station),
-                distanceText: formatDistance(station.distanceKm, locale: locale),
-                valueText: fuel.hasPrice
-                    ? station.price.map { formatPrice($0, currency: station.currency, locale: locale) }
-                    : station.powerKw.map { formatPower($0, locale: locale) },
-                url: StationsAPI.pageURL(for: station, fuel: fuel)
-            )
-        }
+        return Array(sorted.prefix(limit))
     }
 
     static func entry(date: Date, fuel: FuelType, result: Result<[Station], Error>?,
@@ -74,9 +84,43 @@ enum TimelineMapping {
         return CheapestNearbyEntry(date: date, fuel: fuel, content: content)
     }
 
-    /// About hourly; sooner after a failure.
+    /// The last known stations, marked with the time they were fetched. A snapshot with no
+    /// rows for its fuel says nothing useful offline, so it reads as unavailable.
+    static func entry(date: Date, snapshot: StationCache.Snapshot, locale: Locale = .current) -> CheapestNearbyEntry {
+        let rows = rows(from: snapshot.stations, fuel: snapshot.fuel, locale: locale)
+        return CheapestNearbyEntry(date: date, fuel: snapshot.fuel, content: rows.isEmpty ? .unavailable : .stations(rows),
+                                   asOf: snapshot.savedAt)
+    }
+
+    /// Like `entry(date:fuel:result:)`, but a failed fetch falls back to the cached stations
+    /// when they are for the same fuel, at most a day old and taken near `position`.
+    static func entry(date: Date, fuel: FuelType, result: Result<[Station], Error>?,
+                      cached: StationCache.Snapshot?, near position: (latitude: Double, longitude: Double)? = nil,
+                      locale: Locale = .current) -> CheapestNearbyEntry {
+        if case .failure = result, let cached, cached.isUsable(fuel: fuel, now: date),
+           position.map({ cached.isNear(latitude: $0.latitude, longitude: $0.longitude) }) ?? true {
+            let fallback = entry(date: date, snapshot: cached, locale: locale)
+            if case .stations = fallback.content { return fallback }
+        }
+        return entry(date: date, fuel: fuel, result: result, locale: locale)
+    }
+
+    /// About hourly; sooner after a failure, including one covered by cached rows.
     static func nextRefresh(after entry: CheapestNearbyEntry) -> Date {
-        entry.date.addingTimeInterval(entry.content == .unavailable ? retryInterval : refreshInterval)
+        let failed = entry.content == .unavailable || entry.asOf != nil
+        return entry.date.addingTimeInterval(failed ? retryInterval : refreshInterval)
+    }
+
+    /// When cached rows were fetched: the time for today, weekday and time for an older day.
+    static func asOfText(_ date: Date, now: Date = Date(), locale: Locale = .current,
+                         timeZone: TimeZone = .current) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = timeZone
+        formatter.setLocalizedDateFormatFromTemplate(calendar.isDate(date, inSameDayAs: now) ? "jmm" : "EEEjmm")
+        return formatter.string(from: date)
     }
 
     /// Where a tap on the whole widget goes: the cheapest station, the settings when nothing
@@ -121,17 +165,49 @@ enum TimelineMapping {
 
     /// Shown in the widget gallery and while the first timeline loads.
     static func sample(date: Date = Date(), fuel: FuelType = .b7) -> CheapestNearbyEntry {
-        let stations = [
-            Station(id: "1", externalId: "4508", country: "ES", name: "Blanca Madrid", brand: "Blanca",
-                    city: "Madrid", latitude: 40.40528, longitude: -3.70314, price: 1.459,
-                    currency: "EUR", distanceKm: 0.4, powerKw: nil),
-            Station(id: "2", externalId: "3217", country: "ES", name: "Repsol Madrid", brand: "Repsol",
-                    city: "Madrid", latitude: 40.40442, longitude: -3.70539, price: 1.472,
-                    currency: "EUR", distanceKm: 1.1, powerKw: nil),
-            Station(id: "3", externalId: "1234", country: "ES", name: "Cepsa Atocha", brand: "Cepsa",
-                    city: "Madrid", latitude: 40.40701, longitude: -3.69102, price: 1.489,
-                    currency: "EUR", distanceKm: 2.3, powerKw: nil),
-        ]
-        return entry(date: date, fuel: fuel, result: .success(stations))
+        entry(date: date, fuel: fuel, result: .success(sampleStations))
+    }
+
+    static let sampleStations: [Station] = [
+        Station(id: "1", externalId: "4508", country: "ES", name: "Blanca Madrid", brand: "Blanca",
+                city: "Madrid", latitude: 40.40528, longitude: -3.70314, price: 1.459,
+                currency: "EUR", distanceKm: 0.4, powerKw: nil),
+        Station(id: "2", externalId: "3217", country: "ES", name: "Repsol Madrid", brand: "Repsol",
+                city: "Madrid", latitude: 40.40442, longitude: -3.70539, price: 1.472,
+                currency: "EUR", distanceKm: 1.1, powerKw: nil),
+        Station(id: "3", externalId: "1234", country: "ES", name: "Cepsa Atocha", brand: "Cepsa",
+                city: "Madrid", latitude: 40.40701, longitude: -3.69102, price: 1.489,
+                currency: "EUR", distanceKm: 2.3, powerKw: nil),
+    ]
+}
+
+private struct StationsAsOfKey: EnvironmentKey {
+    static let defaultValue: Date? = nil
+}
+
+extension EnvironmentValues {
+    /// When the widget's rows come from the offline cache, the time they were fetched.
+    var stationsAsOf: Date? {
+        get { self[StationsAsOfKey.self] }
+        set { self[StationsAsOfKey.self] = newValue }
+    }
+}
+
+/// A clock and the time the cached rows were fetched; nothing when the rows are live.
+struct AsOfLabel: View {
+    @Environment(\.stationsAsOf) private var asOf
+
+    var body: some View {
+        if let asOf {
+            let text = TimelineMapping.asOfText(asOf)
+            HStack(spacing: 2) {
+                Image(systemName: "clock")
+                Text(text)
+            }
+            .foregroundStyle(.secondary)
+            .fixedSize()
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(String(format: NSLocalizedString("offline.asOf", tableName: "Offline", comment: "Widget: cached rows, with the time"), text))
+        }
     }
 }
