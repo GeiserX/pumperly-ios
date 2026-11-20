@@ -12,12 +12,19 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
     static let handlerName = "pumperlyGeolocation"
 
     weak var webView: WKWebView?
-    private let manager = CLLocationManager()
+    private let manager: CLLocationManager
     private let settings = SharedSettings()
     private let prefetcher = NearbyPrefetcher()
-    /// Pending one-shot requests: id -> the page's maximumAge in milliseconds.
-    private var oneShotIDs: [Int: Double] = [:]
+    /// A pending getCurrentPosition call, with the page's options in milliseconds.
+    private struct OneShot {
+        var maximumAge: Double
+        var timeout: Double?
+        var timerArmed = false
+    }
+    private var oneShotIDs: [Int: OneShot] = [:]
     private var watchIDs: Set<Int> = []
+    /// Bumped on every page change, so a timer from the old page never rejects a new page's id.
+    private var generation = 0
 
     static var userScript: WKUserScript {
         let hosts = AppConfig.allowedHosts.sorted().map { "\"\($0)\"" }.joined(separator: ",")
@@ -43,7 +50,7 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
           function post(message) { window.webkit.messageHandlers.\(handlerName).postMessage(message); }
           function finish(id) {
             var cb = callbacks[id]; if (!cb) return null;
-            if (cb.once) { delete callbacks[id]; clearTimeout(cb.timer); }
+            if (cb.once) delete callbacks[id];
             return cb;
           }
           window.__pumperlyGeo = {
@@ -56,16 +63,14 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
           };
           function number(value) { return typeof value === "number" && value === value ? value : null; }
           geo.getCurrentPosition = function (ok, fail, options) {
-            var id = nextId++; var cb = callbacks[id] = { ok: ok, fail: fail, once: true };
+            var id = nextId++; callbacks[id] = { ok: ok, fail: fail, once: true };
+            // The native side starts the timeout only once permission is granted, as the web API
+            // says, so the time spent on the permission prompt does not count.
             var timeout = number(options && options.timeout);
-            if (timeout !== null && isFinite(timeout)) {
-              cb.timer = setTimeout(function () {
-                window.__pumperlyGeo.reject(id, 3, "Timeout expired");
-              }, Math.max(0, timeout));
-            }
+            timeout = timeout === null || !isFinite(timeout) ? null : Math.max(0, timeout);
             var maximumAge = number(options && options.maximumAge);
             maximumAge = maximumAge === null || maximumAge < 0 ? 0 : Math.min(maximumAge, Number.MAX_SAFE_INTEGER);
-            post({ op: "get", id: id, maximumAge: maximumAge });
+            post({ op: "get", id: id, maximumAge: maximumAge, timeout: timeout });
           };
           geo.watchPosition = function (ok, fail) {
             var id = nextId++; callbacks[id] = { ok: ok, fail: fail, once: false };
@@ -82,7 +87,8 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
         return WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: false)
     }
 
-    override init() {
+    init(manager: CLLocationManager = CLLocationManager()) {
+        self.manager = manager
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
@@ -99,12 +105,16 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
             return
         }
         switch op {
-        case "get": oneShotIDs[id] = (body["maximumAge"] as? NSNumber)?.doubleValue ?? 0
+        case "get":
+            oneShotIDs[id] = OneShot(maximumAge: (body["maximumAge"] as? NSNumber)?.doubleValue ?? 0,
+                                     timeout: (body["timeout"] as? NSNumber)?.doubleValue)
         case "watch": watchIDs.insert(id)
         case "clear":
             watchIDs.remove(id)
-            if watchIDs.isEmpty { manager.stopUpdatingLocation() }
-            return
+            guard watchIDs.isEmpty else { return }
+            manager.stopUpdatingLocation()
+            // A pending one-shot was waiting on the watch's updates; it needs its own request now.
+            if oneShotIDs.isEmpty { return }
         default: return
         }
         proceed()
@@ -112,6 +122,7 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
 
     /// Stops location updates when the page goes away (navigation, reload).
     func reset() {
+        generation += 1
         oneShotIDs.removeAll()
         watchIDs.removeAll()
         manager.stopUpdatingLocation()
@@ -129,8 +140,31 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
             watchIDs.removeAll()
         default:
             answerFromCachedFix()
-            if !oneShotIDs.isEmpty { manager.requestLocation() }
-            if !watchIDs.isEmpty { manager.startUpdatingLocation() }
+            armTimeouts()
+            if watchIDs.isEmpty {
+                if !oneShotIDs.isEmpty { manager.requestLocation() }
+            } else {
+                // requestLocation and startUpdatingLocation cancel each other, and a running watch
+                // on a still device sends no new update. Restarting the updates makes CoreLocation
+                // send a fresh fix, which answers the one-shot and the watch together.
+                if !oneShotIDs.isEmpty { manager.stopUpdatingLocation() }
+                manager.startUpdatingLocation()
+            }
+        }
+    }
+
+    /// Starts the page's timeout for each pending one-shot. Called only once permission is
+    /// granted, so the time spent on the permission prompt does not count against it.
+    private func armTimeouts() {
+        let current = generation
+        for (id, oneShot) in oneShotIDs where !oneShot.timerArmed {
+            oneShotIDs[id]?.timerArmed = true
+            guard let timeout = oneShot.timeout else { continue }
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(min(timeout, 1e12) * 1_000_000))
+                guard let self, self.generation == current, self.oneShotIDs.removeValue(forKey: id) != nil else { return }
+                self.reject([id], code: 3, message: "Timeout expired")
+            }
         }
     }
 
@@ -139,7 +173,7 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
     private func answerFromCachedFix() {
         guard let cached = manager.location else { return }
         let now = Date()
-        let ids = oneShotIDs.filter { Self.cachedFixUsable(location: cached, maximumAgeMs: $0.value, now: now) }.map(\.key)
+        let ids = oneShotIDs.filter { Self.cachedFixUsable(location: cached, maximumAgeMs: $0.value.maximumAge, now: now) }.map(\.key)
         guard !ids.isEmpty else { return }
         for id in ids { oneShotIDs[id] = nil }
         resolve(ids, with: cached)
