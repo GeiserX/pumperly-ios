@@ -44,9 +44,10 @@
 /* Ajustes */
 "settings.open" = "Ajustes";
 "settings.title" = "Ajustes";
+"settings.title.firstRun" = "Tu combustible";
 "settings.fuel" = "Combustible del widget";
 "settings.fuel.footer" = "El widget «Lo más barato cerca» muestra las gasolineras cercanas con el precio de este combustible.";
-"settings.intro" = "Pumperly añade a tu pantalla de inicio el widget «Lo más barato cerca». Elige el combustible que muestra; puedes cambiarlo después desde el widget o manteniendo pulsado el icono de la app.";
+"settings.intro" = "Elige el combustible que usas. El mapa se abre con sus precios, y el widget «Lo más barato cerca» de tu pantalla de inicio también lo muestra. Después puedes cambiar el del mapa en la parte de arriba del mapa, y el del widget desde el widget o manteniendo pulsado el icono de la app.";
 "settings.done" = "Hecho";
 
 /* Diálogos de la web */
