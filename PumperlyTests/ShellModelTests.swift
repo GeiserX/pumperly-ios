@@ -73,7 +73,7 @@ final class ShellModelTests: XCTestCase {
         var watch: [FuelType] = []
         let shell = ShellModel(settings: settings, notifyWatch: { watch.append($0) })
         shell.start(restoredURL: nil, restoredPendingURL: nil, restoredError: .offline)
-        XCTAssertEqual(shell.pendingURL, AppConfig.baseURL)
+        XCTAssertEqual(shell.pendingURL, ShellModel.firstRunURL(fuel: .b7))
         settings.fuel = .e10
         shell.syncFuel()
         XCTAssertEqual(shell.pendingURL, ShellModel.firstRunURL(fuel: .e10))
@@ -105,8 +105,9 @@ final class ShellModelTests: XCTestCase {
         var watch: [FuelType] = []
         let shell = ShellModel(settings: settings, notifyWatch: { watch.append($0) })
         shell.start(restoredURL: nil, restoredPendingURL: nil, restoredError: .offline)
+        let afterStart = shell.pendingURL
         shell.syncFuel()
-        XCTAssertEqual(shell.pendingURL, AppConfig.baseURL)
+        XCTAssertEqual(shell.pendingURL, afterStart)
         XCTAssertEqual(watch, [])
     }
 
@@ -193,13 +194,47 @@ final class ShellModelTests: XCTestCase {
         XCTAssertEqual(watch, [.e10])
     }
 
+    /// A restored page with content (a route the page wrote into the address) stays when the fuels match.
     @MainActor
-    func testStartKeepsTheRestoredPageWhenTheFuelsMatch() throws {
-        let page = try XCTUnwrap(URL(string: "https://pumperly.com/es"))
+    func testStartKeepsARestoredRoutePageWhenTheFuelsMatch() throws {
+        let page = try XCTUnwrap(URL(string: "https://pumperly.com/es?from=40.41,-3.70&to=39.46,-0.37"))
         let settings = makeSettings(fuel: .e10, webFuel: .e10)
         let shell = ShellModel(settings: settings, notifyWatch: { _ in })
         shell.start(restoredURL: page, restoredPendingURL: nil, restoredError: .offline)
         XCTAssertEqual(shell.pendingURL, page)
+    }
+
+    /// The site's fuel cookie may have expired while the app was closed (WebKit caps script-set
+    /// cookies at 7 days), so a launch on the plain map always asks for the app's fuel.
+    @MainActor
+    func testStartOpensThePlainMapOnTheAppFuelEvenWhenTheFuelsMatch() throws {
+        var watch: [FuelType] = []
+        for restored in [nil, URL(string: "https://pumperly.com/es"), URL(string: "https://pumperly.com/")] {
+            let settings = makeSettings(fuel: .e10, webFuel: .e10)
+            let shell = ShellModel(settings: settings, notifyWatch: { watch.append($0) })
+            shell.start(restoredURL: restored, restoredPendingURL: nil, restoredError: nil)
+            XCTAssertEqual(shell.requestedFuel, .e10, "\(String(describing: restored))")
+            XCTAssertNotNil(shell.fuelNavigation)
+        }
+        let settings = makeSettings(fuel: .e10, webFuel: .e10)
+        let shell = ShellModel(settings: settings, notifyWatch: { watch.append($0) })
+        shell.start(restoredURL: URL(string: "https://pumperly.com/es"), restoredPendingURL: nil, restoredError: .offline)
+        XCTAssertEqual(shell.pendingURL, ShellModel.firstRunURL(fuel: .e10))
+        // Nothing changed, so the watch is not told again.
+        XCTAssertEqual(watch, [])
+    }
+
+    /// The site sends / to /<locale>/ and strips the query, so a restored start page is /es.
+    func testALocaleRootIsTheStartPage() throws {
+        for raw in ["https://pumperly.com", "https://pumperly.com/", "https://pumperly.com/es", "https://pumperly.com/es/"] {
+            XCTAssertTrue(ShellModel.isStartPage(try XCTUnwrap(URL(string: raw))), raw)
+        }
+        for raw in ["https://pumperly.com/es?station=ES:Station-A", "https://pumperly.com/es/privacy",
+                    "https://pumperly.com/privacy", "https://example.com/es"] {
+            XCTAssertFalse(ShellModel.isStartPage(try XCTUnwrap(URL(string: raw))), raw)
+        }
+        XCTAssertEqual(ShellModel.startPageFuel(try XCTUnwrap(URL(string: "https://pumperly.com/es?fuel=E5"))), .e5)
+        XCTAssertEqual(ShellModel.startPageFuel(try XCTUnwrap(URL(string: "https://pumperly.com/es/?fuel=E5"))), .e5)
     }
 
     /// A link that failed before the app was ended is still what Retry loads.
@@ -246,7 +281,7 @@ final class ShellModelTests: XCTestCase {
     func testStartPageFuelReadsOnlyTheShellsOwnStartPage() throws {
         XCTAssertEqual(ShellModel.startPageFuel(ShellModel.firstRunURL(fuel: .e10)), .e10)
         for raw in ["https://pumperly.com/", "https://pumperly.com/?fuel=XX", "https://example.com/?fuel=E5",
-                    "https://pumperly.com/es?fuel=E5", "https://pumperly.com/?station=ES:Station-A&fuel=E5"] {
+                    "https://pumperly.com/es/privacy?fuel=E5", "https://pumperly.com/?station=ES:Station-A&fuel=E5"] {
             XCTAssertNil(ShellModel.startPageFuel(try XCTUnwrap(URL(string: raw))), raw)
         }
     }

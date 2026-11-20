@@ -116,16 +116,20 @@ final class ShellModel: NSObject, ObservableObject {
         let restored = restoredURL.flatMap { NavigationPolicy.isAllowed($0) ? $0 : nil }
         let url = restored ?? AppConfig.baseURL
         let restoredTarget = NavigationPolicy.isAllowed(restoredPendingURL) ? restoredPendingURL : nil
-        // The fuel changed outside the map since the page last had it (a Shortcut, the widget, the
-        // first launch after an update): open the map on it, unless a failed link is waiting.
+        // Open the map on the app's fuel, unless a failed link is waiting: always on the plain map,
+        // because the site's fuel cookie can expire while the app is closed (WebKit keeps cookies a
+        // page sets for 7 days); on a page with content only when the fuel changed outside the map
+        // (a Shortcut, the widget, the first launch after an update).
         let pendingLink = restoredError != nil && restoredTarget.map { !Self.isStartPage($0) } == true
-        if fuelNeedsSync, !pendingLink {
+        let restoredIsStartPage = restored.map(Self.isStartPage) ?? true
+        let fuelChanged = fuelNeedsSync
+        if settings.hasChosenFuel, fuelChanged || restoredIsStartPage, !pendingLink {
             error = restoredError
-            beginFuelSync()
+            beginFuelSync(notifyWatch: fuelChanged)
             return
         }
         // A restored pending link is not the start page; a start page that failed is still one.
-        onStartPage = restored == nil && (restoredError == nil || restoredTarget.map(Self.isStartPage) ?? true)
+        onStartPage = restoredIsStartPage && (restoredError == nil || restoredTarget.map(Self.isStartPage) ?? true)
         if let restoredError {
             pendingURL = restoredTarget ?? url
             error = restoredError
@@ -151,9 +155,18 @@ final class ShellModel: NSObject, ObservableObject {
         return components.url!
     }
 
-    /// The plain start page, with no path or query. A failed first load saves it as `https://pumperly.com/`.
+    /// The plain start page: the map root with no query. A failed first load saves it as
+    /// `https://pumperly.com/`; the site sends `/` to `/<locale>/` and strips the query, so a
+    /// restored one is `https://pumperly.com/es`.
     nonisolated static func isStartPage(_ url: URL) -> Bool {
-        url.host?.lowercased() == AppConfig.baseURL.host && (url.path.isEmpty || url.path == "/") && url.query == nil
+        isMapRoot(url) && url.query == nil
+    }
+
+    /// `/` or a locale root such as `/es` or `/es/` on pumperly.com.
+    nonisolated private static func isMapRoot(_ url: URL) -> Bool {
+        guard url.host?.lowercased() == AppConfig.baseURL.host else { return false }
+        let parts = url.path.split(separator: "/")
+        return parts.isEmpty || (parts.count == 1 && parts[0].count == 2 && parts[0].allSatisfy { $0 >= "a" && $0 <= "z" })
     }
 
     /// The first-run fuel answer: the map reopens on that fuel. A link the app was opened with stays;
@@ -199,17 +212,17 @@ final class ShellModel: NSObject, ObservableObject {
 
     /// Opens the map on the app's fuel, or makes it what Retry loads, and tells the watch. The page
     /// is the shell's own start page again, so a first-run choice made after this still replaces it.
-    private func beginFuelSync() {
+    private func beginFuelSync(notifyWatch notify: Bool = true) {
         onStartPage = true
         let fuel = settings.fuel
-        notifyWatch(fuel)
+        if notify { notifyWatch(fuel) }
         let url = Self.firstRunURL(fuel: fuel)
         if error != nil { pendingURL = url } else { load(url) }
     }
 
-    /// The fuel of a start page made by `firstRunURL`, or nil for any other URL.
+    /// The fuel of a start page made by `firstRunURL` (or the locale root the site sends it to), or nil.
     nonisolated static func startPageFuel(_ url: URL) -> FuelType? {
-        guard url.host?.lowercased() == AppConfig.baseURL.host, url.path == "/",
+        guard isMapRoot(url),
               let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
               items.count == 1, items[0].name == "fuel" else { return nil }
         return items[0].value.flatMap(FuelType.init(rawValue:))
