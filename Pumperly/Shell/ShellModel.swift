@@ -120,7 +120,9 @@ final class ShellModel: NSObject, ObservableObject {
         // because the site's fuel cookie can expire while the app is closed (WebKit keeps cookies a
         // page sets for 7 days); on a page with content only when the fuel changed outside the map
         // (a Shortcut, the widget, the first launch after an update).
-        let pendingLink = restoredError != nil && restoredTarget.map { !Self.isStartPage($0) } == true
+        // The shell's own fuel page, saved by an offline launch, is not a link.
+        let pendingLink = restoredError != nil
+            && restoredTarget.map { !Self.isStartPage($0) && Self.startPageFuel($0) == nil } == true
         let restoredIsStartPage = restored.map(Self.isStartPage) ?? true
         let fuelChanged = fuelNeedsSync
         if settings.hasChosenFuel, fuelChanged || restoredIsStartPage, !pendingLink {

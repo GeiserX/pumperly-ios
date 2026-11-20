@@ -247,6 +247,20 @@ final class ShellModelTests: XCTestCase {
         XCTAssertEqual(shell.pendingURL, link)
     }
 
+    /// An offline launch saves the shell's own fuel page as what Retry loads. That is not a link: a
+    /// fuel set while the app was ended (a Shortcut) replaces it.
+    @MainActor
+    func testStartReplacesARestoredFuelPageWithTheAppFuel() throws {
+        for raw in ["https://pumperly.com/?fuel=E5", "https://pumperly.com/es?fuel=E5"] {
+            let saved = try XCTUnwrap(URL(string: raw))
+            let settings = makeSettings(fuel: .b7, webFuel: .e5)
+            let shell = ShellModel(settings: settings, notifyWatch: { _ in })
+            shell.start(restoredURL: nil, restoredPendingURL: saved, restoredError: .offline)
+            XCTAssertEqual(shell.pendingURL, ShellModel.firstRunURL(fuel: .b7), raw)
+            XCTAssertEqual(shell.requestedFuel, .b7, raw)
+        }
+    }
+
     /// The first-run choice loads the map on that fuel; closing the sheet adds nothing.
     @MainActor
     func testFirstRunChoiceIsTheFuelTheMapLoads() {
