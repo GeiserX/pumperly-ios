@@ -66,7 +66,13 @@ struct ContentView: View {
             showingSettings = true
         }
         // A Shortcut or the widget may have changed the fuel while the app was in the background.
-        .onChange(of: scenePhase) { _, phase in if phase == .active { shell.syncFuel() } }
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active: shell.sceneDidBecomeActive()
+            case .background: shell.sceneDidEnterBackground()
+            default: break
+            }
+        }
         .onChange(of: shell.currentURL) { _, url in savedURL = url?.absoluteString }
         .onChange(of: shell.pendingURL) { _, url in savedPendingURL = url?.absoluteString }
         .onChange(of: shell.error) { _, error in savedError = error?.rawValue }

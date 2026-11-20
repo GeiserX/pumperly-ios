@@ -63,38 +63,120 @@ final class ShellModelTests: XCTestCase {
         return settings
     }
 
-    /// A Shortcut or the widget changed the fuel: the map reloads on it.
+    private var link: URL { URL(string: "https://pumperly.com/es?station=ES:Station-A&fuel=LPG")! }
+
+    /// A Shortcut or the widget changed the fuel: the map reloads on it and the watch hears of it.
+    /// The page has the fuel only once that load commits.
     @MainActor
     func testSyncFuelReloadsTheMapOnAFuelChosenElsewhere() {
         let settings = makeSettings(fuel: .b7, webFuel: .b7)
-        let shell = ShellModel(settings: settings)
+        var watch: [FuelType] = []
+        let shell = ShellModel(settings: settings, notifyWatch: { watch.append($0) })
         shell.start(restoredURL: nil, restoredPendingURL: nil, restoredError: .offline)
         XCTAssertEqual(shell.pendingURL, AppConfig.baseURL)
         settings.fuel = .e10
         shell.syncFuel()
         XCTAssertEqual(shell.pendingURL, ShellModel.firstRunURL(fuel: .e10))
-        XCTAssertEqual(settings.webFuel, .e10)
+        XCTAssertEqual(shell.requestedFuel, .e10)
+        XCTAssertEqual(settings.webFuel, .b7)
         XCTAssertEqual(shell.error, .offline)
+        XCTAssertEqual(watch, [.e10])
+        // Already waiting for that fuel: nothing more to do.
+        shell.syncFuel()
+        XCTAssertEqual(watch, [.e10])
+    }
+
+    @MainActor
+    func testTheSyncLoadSetsThePageFuelWhenItCommits() throws {
+        let settings = makeSettings(fuel: .e10, webFuel: .b7)
+        let shell = ShellModel(settings: settings, notifyWatch: { _ in })
+        shell.start(restoredURL: nil, restoredPendingURL: nil, restoredError: nil)
+        let navigation = try XCTUnwrap(shell.fuelNavigation)
+        XCTAssertEqual(shell.requestedFuel, .e10)
+        XCTAssertEqual(settings.webFuel, .b7)
+        shell.webView(shell.webView, didCommit: navigation)
+        XCTAssertEqual(settings.webFuel, .e10)
+        XCTAssertNil(shell.requestedFuel)
     }
 
     @MainActor
     func testSyncFuelLeavesThePageWhenTheFuelsMatch() {
         let settings = makeSettings(fuel: .e10, webFuel: .e10)
-        let shell = ShellModel(settings: settings)
+        var watch: [FuelType] = []
+        let shell = ShellModel(settings: settings, notifyWatch: { watch.append($0) })
         shell.start(restoredURL: nil, restoredPendingURL: nil, restoredError: .offline)
         shell.syncFuel()
         XCTAssertEqual(shell.pendingURL, AppConfig.baseURL)
+        XCTAssertEqual(watch, [])
     }
 
     /// Before the first choice there is nothing to sync: the first-run sheet asks.
     @MainActor
     func testSyncFuelWaitsForTheFirstChoice() {
         let settings = makeSettings(fuel: .e10, webFuel: nil, chosen: false)
-        let shell = ShellModel(settings: settings)
+        let shell = ShellModel(settings: settings, notifyWatch: { _ in })
         shell.start(restoredURL: nil, restoredPendingURL: nil, restoredError: .offline)
         shell.syncFuel()
         XCTAssertEqual(shell.pendingURL, AppConfig.baseURL)
-        XCTAssertNil(settings.webFuel)
+        XCTAssertNil(shell.requestedFuel)
+    }
+
+    /// An activation that arrives before the first load must not load a page start() then replaces.
+    @MainActor
+    func testSyncFuelWaitsForStart() {
+        let settings = makeSettings(fuel: .e10, webFuel: .b7)
+        var watch: [FuelType] = []
+        let shell = ShellModel(settings: settings, notifyWatch: { watch.append($0) })
+        shell.sceneDidBecomeActive()
+        XCTAssertNil(shell.requestedFuel)
+        XCTAssertEqual(watch, [])
+    }
+
+    /// A widget row or a universal link opened after a Shortcut changed the fuel keeps the page for
+    /// this activation; the map syncs at the next one.
+    @MainActor
+    func testALinkKeepsThePageUntilTheNextActivation() {
+        let settings = makeSettings(fuel: .e10, webFuel: .e10)
+        let shell = ShellModel(settings: settings, notifyWatch: { _ in })
+        shell.start(restoredURL: nil, restoredPendingURL: nil, restoredError: nil)
+        settings.fuel = .lpg
+        shell.open(link)
+        shell.sceneDidBecomeActive()
+        XCTAssertNil(shell.requestedFuel)
+        XCTAssertEqual(settings.webFuel, .e10)
+        shell.sceneDidEnterBackground()
+        shell.sceneDidBecomeActive()
+        XCTAssertEqual(shell.requestedFuel, .lpg)
+    }
+
+    /// The activation ran first and the link then replaced its load: the page never had the fuel.
+    @MainActor
+    func testALinkThatReplacesTheSyncLoadLeavesTheFuelUnsynced() {
+        let settings = makeSettings(fuel: .e10, webFuel: .e10)
+        let shell = ShellModel(settings: settings, notifyWatch: { _ in })
+        shell.start(restoredURL: nil, restoredPendingURL: nil, restoredError: nil)
+        settings.fuel = .lpg
+        shell.sceneDidBecomeActive()
+        XCTAssertEqual(shell.requestedFuel, .lpg)
+        shell.open(link)
+        XCTAssertNil(shell.requestedFuel)
+        XCTAssertNil(shell.fuelNavigation)
+        XCTAssertEqual(settings.webFuel, .e10)
+        shell.sceneDidEnterBackground()
+        shell.sceneDidBecomeActive()
+        XCTAssertEqual(shell.requestedFuel, .lpg)
+    }
+
+    /// Closing the sheet after a change syncs even when a link holds this activation.
+    @MainActor
+    func testTheSheetClosingSyncsEvenAfterALink() {
+        let settings = makeSettings(fuel: .e10, webFuel: .e10)
+        let shell = ShellModel(settings: settings, notifyWatch: { _ in })
+        shell.start(restoredURL: nil, restoredPendingURL: nil, restoredError: nil)
+        shell.open(link)
+        settings.fuel = .lpg
+        shell.syncFuel()
+        XCTAssertEqual(shell.requestedFuel, .lpg)
     }
 
     /// Relaunch after a change outside the map (or the first launch after the update): the map
@@ -103,17 +185,19 @@ final class ShellModelTests: XCTestCase {
     func testStartOpensTheMapOnTheAppFuelWhenThePageHasAnother() throws {
         let page = try XCTUnwrap(URL(string: "https://pumperly.com/es"))
         let settings = makeSettings(fuel: .e10, webFuel: .b7)
-        let shell = ShellModel(settings: settings)
+        var watch: [FuelType] = []
+        let shell = ShellModel(settings: settings, notifyWatch: { watch.append($0) })
         shell.start(restoredURL: page, restoredPendingURL: nil, restoredError: .offline)
         XCTAssertEqual(shell.pendingURL, ShellModel.firstRunURL(fuel: .e10))
-        XCTAssertEqual(settings.webFuel, .e10)
+        XCTAssertEqual(shell.requestedFuel, .e10)
+        XCTAssertEqual(watch, [.e10])
     }
 
     @MainActor
     func testStartKeepsTheRestoredPageWhenTheFuelsMatch() throws {
         let page = try XCTUnwrap(URL(string: "https://pumperly.com/es"))
         let settings = makeSettings(fuel: .e10, webFuel: .e10)
-        let shell = ShellModel(settings: settings)
+        let shell = ShellModel(settings: settings, notifyWatch: { _ in })
         shell.start(restoredURL: page, restoredPendingURL: nil, restoredError: .offline)
         XCTAssertEqual(shell.pendingURL, page)
     }
@@ -123,22 +207,48 @@ final class ShellModelTests: XCTestCase {
     func testStartKeepsARestoredPendingLinkWhenTheFuelsDiffer() throws {
         let link = try XCTUnwrap(URL(string: "https://pumperly.com/es?station=Station-A"))
         let settings = makeSettings(fuel: .e10, webFuel: .b7)
-        let shell = ShellModel(settings: settings)
+        let shell = ShellModel(settings: settings, notifyWatch: { _ in })
         shell.start(restoredURL: nil, restoredPendingURL: link, restoredError: .offline)
         XCTAssertEqual(shell.pendingURL, link)
     }
 
-    /// The first-run choice is the page's fuel once the map opens on it.
+    /// The first-run choice loads the map on that fuel; closing the sheet adds nothing.
     @MainActor
-    func testFirstRunChoiceRecordsThePageFuel() {
+    func testFirstRunChoiceIsTheFuelTheMapLoads() {
         let settings = makeSettings(fuel: .e5, webFuel: nil, chosen: false)
-        let shell = ShellModel(settings: settings)
+        var watch: [FuelType] = []
+        let shell = ShellModel(settings: settings, notifyWatch: { watch.append($0) })
         shell.start(restoredURL: nil, restoredPendingURL: nil, restoredError: .offline)
         settings.hasChosenFuel = true
         shell.applyFirstRunChoice(.e5)
-        XCTAssertEqual(settings.webFuel, .e5)
+        XCTAssertEqual(shell.requestedFuel, .e5)
         shell.syncFuel()
         XCTAssertEqual(shell.pendingURL, ShellModel.firstRunURL(fuel: .e5))
+        XCTAssertEqual(watch, [])
+    }
+
+    /// The app came back to the foreground while the first-run sheet was up, after one pick; a
+    /// second pick on the same sheet still reaches the map.
+    @MainActor
+    func testASecondFirstRunPickAfterAnActivationReachesTheMap() {
+        let settings = makeSettings(fuel: .b7, webFuel: nil, chosen: false)
+        let shell = ShellModel(settings: settings, notifyWatch: { _ in })
+        shell.start(restoredURL: nil, restoredPendingURL: nil, restoredError: .offline)
+        settings.fuel = .e5
+        settings.hasChosenFuel = true
+        shell.sceneDidBecomeActive()
+        XCTAssertEqual(shell.requestedFuel, .e5)
+        settings.fuel = .lpg
+        shell.applyFirstRunChoice(.lpg)
+        XCTAssertEqual(shell.pendingURL, ShellModel.firstRunURL(fuel: .lpg))
+    }
+
+    func testStartPageFuelReadsOnlyTheShellsOwnStartPage() throws {
+        XCTAssertEqual(ShellModel.startPageFuel(ShellModel.firstRunURL(fuel: .e10)), .e10)
+        for raw in ["https://pumperly.com/", "https://pumperly.com/?fuel=XX", "https://example.com/?fuel=E5",
+                    "https://pumperly.com/es?fuel=E5", "https://pumperly.com/?station=ES:Station-A&fuel=E5"] {
+            XCTAssertNil(ShellModel.startPageFuel(try XCTUnwrap(URL(string: raw))), raw)
+        }
     }
 
     func testTheSheetIsTitledYourFuel() throws {
