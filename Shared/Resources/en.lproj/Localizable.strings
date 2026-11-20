@@ -44,9 +44,10 @@
 /* Settings */
 "settings.open" = "Settings";
 "settings.title" = "Settings";
+"settings.title.firstRun" = "Your fuel";
 "settings.fuel" = "Widget fuel";
 "settings.fuel.footer" = "The Cheapest nearby widget shows the stations near you with the price of this fuel.";
-"settings.intro" = "Pumperly adds a Cheapest nearby widget to your Home Screen. Choose the fuel it shows; you can change it later from the widget or by holding the app icon.";
+"settings.intro" = "Choose the fuel you use. The map opens on its prices, and the Cheapest nearby widget on your Home Screen shows it too. Later you can change the map's fuel at the top of the map, and the widget's from the widget or by holding the app icon.";
 "settings.done" = "Done";
 
 /* Web dialogs */

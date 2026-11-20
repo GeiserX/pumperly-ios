@@ -16,6 +16,8 @@ final class ShellModel: NSObject, ObservableObject {
     private let geolocation = GeolocationBridge()
     private var observations: [NSKeyValueObservation] = []
     private var started = false
+    /// True while the shell is on the plain start page it chose itself, not a restored page or a link.
+    private var onStartPage = false
 
     override init() {
         webView = Self.makeWebView(geolocation: geolocation)
@@ -87,9 +89,13 @@ final class ShellModel: NSObject, ObservableObject {
             return
         }
         #endif
-        let url: URL = restoredURL.flatMap { NavigationPolicy.isAllowed($0) ? $0 : nil } ?? AppConfig.baseURL
+        let restored = restoredURL.flatMap { NavigationPolicy.isAllowed($0) ? $0 : nil }
+        let url = restored ?? AppConfig.baseURL
+        let restoredTarget = NavigationPolicy.isAllowed(restoredPendingURL) ? restoredPendingURL : nil
+        // A restored pending link is not the start page; a start page that failed is still one.
+        onStartPage = restored == nil && (restoredError == nil || restoredTarget.map(Self.isStartPage) ?? true)
         if let restoredError {
-            pendingURL = (NavigationPolicy.isAllowed(restoredPendingURL) ? restoredPendingURL : nil) ?? url
+            pendingURL = restoredTarget ?? url
             error = restoredError
         } else {
             load(url)
@@ -100,7 +106,30 @@ final class ShellModel: NSObject, ObservableObject {
     func open(_ url: URL) {
         guard NavigationPolicy.isAllowed(url) else { return }
         started = true
+        onStartPage = false
         load(url)
+    }
+
+    /// The start page on the fuel the user picked on the first-run sheet. The site reads `?fuel=`.
+    nonisolated static func firstRunURL(fuel: FuelType) -> URL {
+        var components = URLComponents(url: AppConfig.baseURL, resolvingAgainstBaseURL: false)!
+        components.path = "/"
+        components.queryItems = [URLQueryItem(name: "fuel", value: fuel.rawValue)]
+        return components.url!
+    }
+
+    /// The plain start page, with no path or query. A failed first load saves it as `https://pumperly.com/`.
+    nonisolated static func isStartPage(_ url: URL) -> Bool {
+        url.host?.lowercased() == AppConfig.baseURL.host && (url.path.isEmpty || url.path == "/") && url.query == nil
+    }
+
+    /// The first-run fuel answer: the map reopens on that fuel. A link the app was opened with stays;
+    /// behind the error screen the choice becomes what Retry loads.
+    func applyFirstRunChoice(_ fuel: FuelType) {
+        guard onStartPage else { return }
+        onStartPage = false
+        let url = Self.firstRunURL(fuel: fuel)
+        if error != nil { pendingURL = url } else { load(url) }
     }
 
     func load(_ url: URL) {

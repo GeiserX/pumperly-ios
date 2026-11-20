@@ -34,21 +34,31 @@ final class ShellUITests: XCTestCase {
         XCTAssertTrue(app.buttons["shell.error.action"].exists)
     }
 
-    /// First launch opens the widget fuel screen once; the choice sticks across launches.
+    /// First launch asks for the fuel once, with nothing picked for the user; the choice sticks across launches.
     func testFirstLaunchAsksForTheWidgetFuelOnce() {
         let app = XCUIApplication()
         app.launchEnvironment["PUMPERLY_UITEST_ERROR"] = "offline"
         app.launchEnvironment["PUMPERLY_UITEST_RESET"] = "1"
+        app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
 
         XCTAssertTrue(app.staticTexts["settings.intro"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars.staticTexts["Your fuel"].exists)
         // A row near the top: the form is lazy, so rows below the fold do not exist yet.
         let premium = app.buttons["settings.fuel.B7_PREMIUM"]
         XCTAssertTrue(premium.waitForExistence(timeout: 10))
+        // Nothing is ticked and nothing can be confirmed until a fuel is tapped.
+        let ticked = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'settings.fuel.' AND isSelected == true"))
+        XCTAssertEqual(ticked.count, 0)
+        XCTAssertFalse(app.buttons["settings.done"].isEnabled)
+        let bar = app.navigationBars.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        bar.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)))
+        XCTAssertFalse(waitUntilGone(app.staticTexts["settings.intro"], timeout: 3), "swipe-down closed the first-run sheet")
         premium.tap()
         // On a slow CI simulator the first tap can land while the sheet is still animating in.
         if !waitUntilSelected(premium, timeout: 5) { premium.tap() }
         XCTAssertTrue(waitUntilSelected(premium, timeout: 15))
+        XCTAssertTrue(app.buttons["settings.done"].isEnabled)
         app.buttons["settings.done"].tap()
         XCTAssertTrue(app.staticTexts["shell.error.title"].waitForExistence(timeout: 10))
 
@@ -58,6 +68,18 @@ final class ShellUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["shell.error.title"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["settings.intro"].exists)
         XCTAssertFalse(app.buttons["settings.done"].exists)
+
+        // Opened again later (widget, icon menu), the sheet is about the widget and shows the choice.
+        app.open(URL(string: "pumperly://settings")!)
+        XCTAssertTrue(app.buttons["settings.done"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars.staticTexts["Widget fuel"].exists)
+        XCTAssertTrue(waitUntilSelected(app.buttons["settings.fuel.B7_PREMIUM"]))
+        XCTAssertTrue(app.buttons["settings.done"].isEnabled)
+    }
+
+    private func waitUntilGone(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: element)
+        return XCTWaiter.wait(for: [gone], timeout: timeout) == .completed
     }
 
     /// SwiftUI updates the selected trait a moment after the tap.

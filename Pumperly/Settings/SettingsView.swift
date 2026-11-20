@@ -2,11 +2,15 @@ import SwiftUI
 import WidgetKit
 
 /// The one setting the widget needs: which fuel's price to show.
+/// The first time it asks for the user's fuel, with nothing picked, and the map opens on the answer.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var fuel = SharedSettings().fuel
-    /// Shown the first time, before the user has confirmed a fuel.
-    private let isFirstRun = !SharedSettings().hasChosenFuel
+    /// Shown the first time, before the user has confirmed a fuel. State, so it holds while the sheet is up.
+    @State private var isFirstRun = !SharedSettings().hasChosenFuel
+    /// Nil on the first run until the user taps a fuel: the app never picks one for them.
+    @State private var fuel: FuelType? = SharedSettings().hasChosenFuel ? SharedSettings().fuel : nil
+    /// Called once when the first-run sheet closes with a fuel, so the map can open on it.
+    var onFirstRunChoice: (FuelType) -> Void = { _ in }
 
     var body: some View {
         NavigationStack {
@@ -43,17 +47,23 @@ struct SettingsView: View {
                     }
                 }
             }
-            .navigationTitle(Text("settings.title"))
+            .navigationTitle(Text(isFirstRun ? "settings.title.firstRun" : "settings.fuel"))
             .navigationBarTitleDisplayMode(.inline)
+            // No swipe-down past the first question until a fuel is picked.
+            .interactiveDismissDisabled(fuel == nil)
             // Also covers a watch app installed after the fuel was chosen.
-            .onAppear { WatchSync.shared.send(fuel: fuel) }
-            .onDisappear { SharedSettings().hasChosenFuel = true }
+            .onAppear { if let fuel { WatchSync.shared.send(fuel: fuel) } }
+            .onDisappear {
+                guard let fuel else { return }
+                SharedSettings().hasChosenFuel = true
+                if isFirstRun { onFirstRunChoice(fuel) }
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
-                        SharedSettings().hasChosenFuel = true
                         dismiss()
                     } label: { Text("settings.done") }
+                        .disabled(fuel == nil)
                         .accessibilityIdentifier("settings.done")
                 }
             }

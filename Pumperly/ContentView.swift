@@ -36,14 +36,14 @@ struct ContentView: View {
             .ignoresSafeArea(edges: .bottom)
         }
         .sheet(isPresented: $showingSettings) {
-            SettingsView()
+            SettingsView(onFirstRunChoice: shell.applyFirstRunChoice)
         }
         .onAppear {
             Self.applyTestHooks()
             shell.start(restoredURL: savedURL.flatMap(URL.init(string:)),
                         restoredPendingURL: savedPendingURL.flatMap(URL.init(string:)),
                         restoredError: savedError.flatMap(ShellError.init(rawValue:)))
-            // First launch: ask for the widget's fuel once.
+            // First launch: ask for the user's fuel once; the map and the widget use it.
             if router.settingsRequested || !SharedSettings().hasChosenFuel {
                 router.settingsRequested = false
                 showingSettings = true
