@@ -1,8 +1,8 @@
 import SwiftUI
 import WidgetKit
 
-/// The one setting the widget needs: which fuel's price to show.
-/// The first time it asks for the user's fuel, with nothing picked, and the map opens on the answer.
+/// The user's fuel: the map, the widget, Siri and the watch use it.
+/// The first time it asks for it, with nothing picked, and the map opens on the answer.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     /// Shown the first time, before the user has confirmed a fuel. State, so it holds while the sheet is up.
@@ -11,6 +11,8 @@ struct SettingsView: View {
     @State private var fuel: FuelType? = SharedSettings().hasChosenFuel ? SharedSettings().fuel : nil
     /// Called once when the first-run sheet closes with a fuel, so the map can open on it.
     var onFirstRunChoice: (FuelType) -> Void = { _ in }
+    /// Called when the sheet closes on a later run, so the map can reload on a changed fuel.
+    var onClose: () -> Void = {}
 
     var body: some View {
         NavigationStack {
@@ -56,7 +58,7 @@ struct SettingsView: View {
             .onDisappear {
                 guard let fuel else { return }
                 SharedSettings().hasChosenFuel = true
-                if isFirstRun { onFirstRunChoice(fuel) }
+                if isFirstRun { onFirstRunChoice(fuel) } else { onClose() }
             }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

@@ -4,6 +4,7 @@ struct ContentView: View {
     @StateObject private var shell = ShellModel()
     @ObservedObject private var router = AppRouter.shared
     @State private var showingSettings = false
+    @Environment(\.scenePhase) private var scenePhase
 
     // Survives the system ending the app in the background, like Android's onSaveInstanceState.
     @SceneStorage("shell.url") private var savedURL: String?
@@ -36,7 +37,7 @@ struct ContentView: View {
             .ignoresSafeArea(edges: .bottom)
         }
         .sheet(isPresented: $showingSettings) {
-            SettingsView(onFirstRunChoice: shell.applyFirstRunChoice)
+            SettingsView(onFirstRunChoice: shell.applyFirstRunChoice, onClose: shell.syncFuel)
         }
         .onAppear {
             Self.applyTestHooks()
@@ -63,6 +64,14 @@ struct ContentView: View {
             guard requested else { return }
             router.settingsRequested = false
             showingSettings = true
+        }
+        // A Shortcut or the widget may have changed the fuel while the app was in the background.
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active: shell.sceneDidBecomeActive()
+            case .background: shell.sceneDidEnterBackground()
+            default: break
+            }
         }
         .onChange(of: shell.currentURL) { _, url in savedURL = url?.absoluteString }
         .onChange(of: shell.pendingURL) { _, url in savedPendingURL = url?.absoluteString }

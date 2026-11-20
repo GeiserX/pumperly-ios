@@ -3,6 +3,6 @@
 "Find the cheapest fuel with ${applicationName}" = "Busca el combustible más barato con ${applicationName}";
 "Cheapest ${fuel} nearby in ${applicationName}" = "${fuel} al mejor precio cerca en ${applicationName}";
 "Where is the cheapest ${fuel} in ${applicationName}" = "Dónde repostar ${fuel} más barato con ${applicationName}";
-"Set the widget fuel in ${applicationName}" = "Cambia el combustible del widget en ${applicationName}";
-"Change the ${applicationName} widget fuel" = "Elige el combustible del widget de ${applicationName}";
+"Set my fuel in ${applicationName}" = "Cambia mi combustible en ${applicationName}";
+"Change my ${applicationName} fuel" = "Elige mi combustible en ${applicationName}";
 "Go back to ${applicationName}" = "Vuelve a ${applicationName}";

@@ -1,10 +1,10 @@
 /* App Intents: Siri, Atajos y Spotlight */
 "intent.cheapest.title" = "Buscar el combustible más barato cerca";
-"intent.cheapest.description" = "Busca la estación más barata cerca de ti para un combustible, o el cargador más cercano para la carga eléctrica.";
+"intent.cheapest.description" = "Busca la estación más barata cerca de ti para tu combustible, o para el que digas, o el cargador más cercano para la carga eléctrica.";
 "intent.open.title" = "Abrir Pumperly";
 "intent.open.description" = "Abre Pumperly donde lo dejaste.";
-"intent.setFuel.title" = "Cambiar el combustible del widget";
-"intent.setFuel.description" = "Elige el combustible que muestra el widget «Lo más barato cerca».";
+"intent.setFuel.title" = "Cambiar tu combustible";
+"intent.setFuel.description" = "Cambia el combustible que Pumperly usa en el mapa, el widget y Siri.";
 
 "param.fuel" = "Combustible";
 "param.screen" = "Abrir";
@@ -13,7 +13,7 @@
 "screen.app" = "Pumperly";
 
 "shortcut.cheapest" = "Lo más barato cerca";
-"shortcut.setFuel" = "Combustible del widget";
+"shortcut.setFuel" = "Tu combustible";
 "shortcut.open" = "Abrir Pumperly";
 
 /* Respuestas habladas. %1$@ combustible, %2$@ estación, %3$@ precio, %4$@ distancia. */
@@ -27,4 +27,4 @@
 "dialog.needsLocation" = "Abre Pumperly y permite la ubicación para ver estaciones cerca de ti.";
 "dialog.locationUnavailable" = "Tu ubicación no está disponible ahora mismo. Inténtalo de nuevo en un momento.";
 "dialog.unavailable" = "Los precios no están disponibles ahora mismo. Inténtalo más tarde.";
-"dialog.setFuel" = "El widget muestra ahora %@.";
+"dialog.setFuel" = "Pumperly usa ahora %@.";

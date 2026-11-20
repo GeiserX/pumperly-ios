@@ -45,13 +45,14 @@ targets:
         # Light status bar text on the site's dark header colour.
         UIStatusBarStyle: UIStatusBarStyleLightContent
         UIViewControllerBasedStatusBarAppearance: false
-        # pumperly://settings opens the widget fuel screen (used by the widget).
+        # pumperly://settings opens the fuel screen (used by the widget).
         CFBundleURLTypes:
           - CFBundleURLName: com.pumperly.app
             CFBundleURLSchemes: [pumperly]
         UIApplicationShortcutItems:
           - UIApplicationShortcutItemType: com.pumperly.app.widget-fuel
-            UIApplicationShortcutItemTitle: Widget fuel
+            # The type keeps its old name so saved quick actions keep working.
+            UIApplicationShortcutItemTitle: Your fuel
             UIApplicationShortcutItemIconSymbolName: fuelpump.fill
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false

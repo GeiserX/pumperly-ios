@@ -26,9 +26,11 @@ final class SharedSettingsTests: XCTestCase {
         XCTAssertFalse(settings.hasChosenFuel)
         settings.fuel = .e5
         settings.hasChosenFuel = true
+        settings.webFuel = .e5
         settings.saveLocation(latitude: 40, longitude: -3)
         settings.reset()
         XCTAssertFalse(settings.hasChosenFuel)
+        XCTAssertNil(settings.webFuel)
         XCTAssertEqual(settings.fuel, .b7)
         XCTAssertNil(settings.lastLocation())
     }
@@ -40,6 +42,15 @@ final class SharedSettingsTests: XCTestCase {
         settings.clearLocation()
         XCTAssertNil(settings.lastLocation())
         XCTAssertEqual(settings.fuel, .lpg)
+    }
+
+    func testThePageFuelIsUnknownUntilRecorded() {
+        let settings = SharedSettings(defaults: defaults)
+        XCTAssertNil(settings.webFuel)
+        settings.webFuel = .lpg
+        XCTAssertEqual(SharedSettings(defaults: defaults).webFuel, .lpg)
+        defaults.set("KEROSENE", forKey: SharedSettings.webFuelKey)
+        XCTAssertNil(SharedSettings(defaults: defaults).webFuel)
     }
 
     func testUnknownStoredFuelFallsBackToDefault() {
