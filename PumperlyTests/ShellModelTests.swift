@@ -31,6 +31,26 @@ final class ShellModelTests: XCTestCase {
         XCTAssertEqual(shell.pendingURL, page)
     }
 
+    /// A link that failed before the app was ended stays what Retry loads after the fuel choice.
+    @MainActor
+    func testFirstRunChoiceKeepsARestoredPendingLink() throws {
+        let link = try XCTUnwrap(URL(string: "https://pumperly.com/es?station=Station-A"))
+        let shell = ShellModel()
+        shell.start(restoredURL: nil, restoredPendingURL: link, restoredError: .offline)
+        shell.applyFirstRunChoice(.e5)
+        XCTAssertEqual(shell.pendingURL, link)
+    }
+
+    /// A start page that failed before the app was ended still takes the fuel choice.
+    @MainActor
+    func testFirstRunChoiceReplacesARestoredFailedStartPage() throws {
+        let startPage = try XCTUnwrap(URL(string: "https://pumperly.com/"))
+        let shell = ShellModel()
+        shell.start(restoredURL: nil, restoredPendingURL: startPage, restoredError: .offline)
+        shell.applyFirstRunChoice(.e5)
+        XCTAssertEqual(shell.pendingURL?.absoluteString, "https://pumperly.com/?fuel=E5")
+    }
+
     func testTheFuelSheetHasEnglishAndSpanishText() throws {
         let app = Bundle(for: ShellModel.self)
         for language in ["en", "es"] {

@@ -91,9 +91,11 @@ final class ShellModel: NSObject, ObservableObject {
         #endif
         let restored = restoredURL.flatMap { NavigationPolicy.isAllowed($0) ? $0 : nil }
         let url = restored ?? AppConfig.baseURL
-        onStartPage = restored == nil
+        let restoredTarget = NavigationPolicy.isAllowed(restoredPendingURL) ? restoredPendingURL : nil
+        // A restored pending link is not the start page; a start page that failed is still one.
+        onStartPage = restored == nil && (restoredError == nil || restoredTarget.map(Self.isStartPage) ?? true)
         if let restoredError {
-            pendingURL = (NavigationPolicy.isAllowed(restoredPendingURL) ? restoredPendingURL : nil) ?? url
+            pendingURL = restoredTarget ?? url
             error = restoredError
         } else {
             load(url)
@@ -114,6 +116,11 @@ final class ShellModel: NSObject, ObservableObject {
         components.path = "/"
         components.queryItems = [URLQueryItem(name: "fuel", value: fuel.rawValue)]
         return components.url!
+    }
+
+    /// The plain start page, with no path or query. A failed first load saves it as `https://pumperly.com/`.
+    nonisolated static func isStartPage(_ url: URL) -> Bool {
+        url.host?.lowercased() == AppConfig.baseURL.host && (url.path.isEmpty || url.path == "/") && url.query == nil
     }
 
     /// The first-run fuel answer: the map reopens on that fuel. A link the app was opened with stays;
