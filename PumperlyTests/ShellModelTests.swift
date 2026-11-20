@@ -261,6 +261,43 @@ final class ShellModelTests: XCTestCase {
         }
     }
 
+    /// A Retry on one fuel is replaced when the user goes back to the fuel the page already had.
+    @MainActor
+    func testSyncFuelReplacesARetryOnAnotherFuelEvenWhenThePageHasTheNewOne() {
+        let settings = makeSettings(fuel: .e5, webFuel: .b7)
+        let shell = ShellModel(settings: settings, notifyWatch: { _ in })
+        shell.start(restoredURL: nil, restoredPendingURL: nil, restoredError: .offline)
+        XCTAssertEqual(shell.requestedFuel, .e5)
+        settings.fuel = .b7
+        shell.syncFuel()
+        XCTAssertEqual(shell.pendingURL, ShellModel.firstRunURL(fuel: .b7))
+    }
+
+    /// A Retry saved on another fuel is replaced at launch, even when the restored page is a route.
+    @MainActor
+    func testStartReplacesARetryOnAnotherFuelBehindARestoredRoute() throws {
+        let route = try XCTUnwrap(URL(string: "https://pumperly.com/es?from=40.41,-3.70&to=39.46,-0.37"))
+        let settings = makeSettings(fuel: .b7, webFuel: .b7)
+        let shell = ShellModel(settings: settings, notifyWatch: { _ in })
+        shell.start(restoredURL: route, restoredPendingURL: ShellModel.firstRunURL(fuel: .e5), restoredError: .offline)
+        XCTAssertEqual(shell.pendingURL, ShellModel.firstRunURL(fuel: .b7))
+    }
+
+    /// A failed link restored at launch keeps Retry through the launch activation; the map syncs at
+    /// the next one.
+    @MainActor
+    func testARestoredFailedLinkKeepsRetryThroughTheLaunchActivation() throws {
+        let failed = try XCTUnwrap(URL(string: "https://pumperly.com/es?station=Station-A"))
+        let settings = makeSettings(fuel: .e10, webFuel: .b7)
+        let shell = ShellModel(settings: settings, notifyWatch: { _ in })
+        shell.start(restoredURL: nil, restoredPendingURL: failed, restoredError: .offline)
+        shell.sceneDidBecomeActive()
+        XCTAssertEqual(shell.pendingURL, failed)
+        shell.sceneDidEnterBackground()
+        shell.sceneDidBecomeActive()
+        XCTAssertEqual(shell.pendingURL, ShellModel.firstRunURL(fuel: .e10))
+    }
+
     /// The first-run choice loads the map on that fuel; closing the sheet adds nothing.
     @MainActor
     func testFirstRunChoiceIsTheFuelTheMapLoads() {

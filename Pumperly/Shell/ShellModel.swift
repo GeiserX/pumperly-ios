@@ -124,7 +124,10 @@ final class ShellModel: NSObject, ObservableObject {
         let pendingLink = restoredError != nil
             && restoredTarget.map { !Self.isStartPage($0) && Self.startPageFuel($0) == nil } == true
         let restoredIsStartPage = restored.map(Self.isStartPage) ?? true
-        let fuelChanged = fuelNeedsSync
+        // A Retry saved on the shell's own fuel page is the fuel the map is waiting for.
+        let fuelChanged = needsSync(requested: restoredError == nil ? nil : restoredTarget.flatMap(Self.startPageFuel))
+        // A failed link keeps Retry through the launch activation; the map syncs at the next one.
+        if pendingLink { linkOwnsActivation = true }
         if settings.hasChosenFuel, fuelChanged || restoredIsStartPage, !pendingLink {
             error = restoredError
             beginFuelSync(notifyWatch: fuelChanged)
@@ -204,12 +207,16 @@ final class ShellModel: NSObject, ObservableObject {
         return error != nil ? pendingURL.flatMap(Self.startPageFuel) : nil
     }
 
-    /// True when the user has a fuel that the page neither has nor is loading.
-    private var fuelNeedsSync: Bool {
+    /// True when the user has a fuel that the page neither is loading nor, with nothing loading, has.
+    private var fuelNeedsSync: Bool { needsSync(requested: requestedFuel) }
+
+    /// A start page loading or waiting for Retry wins over the fuel the page last had: it is what
+    /// the map shows next.
+    private func needsSync(requested: FuelType?) -> Bool {
         #if DEBUG
         if testHookOwnsPage { return false }
         #endif
-        return settings.hasChosenFuel && settings.fuel != settings.webFuel && settings.fuel != requestedFuel
+        return settings.hasChosenFuel && settings.fuel != (requested ?? settings.webFuel)
     }
 
     /// Opens the map on the app's fuel, or makes it what Retry loads, and tells the watch. The page
