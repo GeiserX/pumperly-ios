@@ -14,13 +14,21 @@ final class ShellModel: NSObject, ObservableObject {
 
     let webView: WKWebView
     private let geolocation = GeolocationBridge()
+    private let settings: SharedSettings
+    private let fuelBridge: FuelBridge
     private var observations: [NSKeyValueObservation] = []
     private var started = false
     /// True while the shell is on the plain start page it chose itself, not a restored page or a link.
     private var onStartPage = false
+    #if DEBUG
+    /// A UI test hook chose the page; the fuel sync must not replace it with the live site.
+    private var testHookOwnsPage = false
+    #endif
 
-    override init() {
-        webView = Self.makeWebView(geolocation: geolocation)
+    init(settings: SharedSettings = SharedSettings()) {
+        self.settings = settings
+        fuelBridge = FuelBridge(settings: settings)
+        webView = Self.makeWebView(geolocation: geolocation, fuel: fuelBridge)
         super.init()
         geolocation.webView = webView
         webView.navigationDelegate = self
@@ -47,7 +55,7 @@ final class ShellModel: NSObject, ObservableObject {
     }
 
     /// The configured web view. Static so the tests can check the user agent on a real instance.
-    static func makeWebView(geolocation: GeolocationBridge? = nil) -> WKWebView {
+    static func makeWebView(geolocation: GeolocationBridge? = nil, fuel: FuelBridge? = nil) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.applicationNameForUserAgent = UserAgent.applicationName(version: AppConfig.appVersion)
         configuration.websiteDataStore = .default()
@@ -57,6 +65,9 @@ final class ShellModel: NSObject, ObservableObject {
         if let geolocation {
             configuration.userContentController.addUserScript(GeolocationBridge.userScript)
             configuration.userContentController.add(geolocation, name: GeolocationBridge.handlerName)
+        }
+        if let fuel {
+            configuration.userContentController.add(fuel, name: FuelBridge.handlerName)
         }
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.allowsBackForwardNavigationGestures = true
@@ -74,6 +85,9 @@ final class ShellModel: NSObject, ObservableObject {
         guard !started else { return }
         started = true
         #if DEBUG
+        let environment = ProcessInfo.processInfo.environment
+        testHookOwnsPage = ["PUMPERLY_UITEST_HTML", "PUMPERLY_START_URL", "PUMPERLY_UITEST_ERROR"]
+            .contains { environment[$0] != nil }
         if let html = ProcessInfo.processInfo.environment["PUMPERLY_UITEST_HTML"] {
             webView.loadHTMLString(html, baseURL: AppConfig.baseURL)
             return
@@ -92,6 +106,20 @@ final class ShellModel: NSObject, ObservableObject {
         let restored = restoredURL.flatMap { NavigationPolicy.isAllowed($0) ? $0 : nil }
         let url = restored ?? AppConfig.baseURL
         let restoredTarget = NavigationPolicy.isAllowed(restoredPendingURL) ? restoredPendingURL : nil
+        // The fuel changed outside the map since the page last had it (a Shortcut, the widget, the
+        // first launch after an update): open the map on it, unless a failed link is waiting.
+        let pendingLink = restoredError != nil && restoredTarget.map { !Self.isStartPage($0) } == true
+        if fuelNeedsSync, !pendingLink {
+            onStartPage = false
+            let fuelURL = markFuelSynced()
+            if let restoredError {
+                pendingURL = fuelURL
+                error = restoredError
+            } else {
+                load(fuelURL)
+            }
+            return
+        }
         // A restored pending link is not the start page; a start page that failed is still one.
         onStartPage = restored == nil && (restoredError == nil || restoredTarget.map(Self.isStartPage) ?? true)
         if let restoredError {
@@ -110,7 +138,7 @@ final class ShellModel: NSObject, ObservableObject {
         load(url)
     }
 
-    /// The start page on the fuel the user picked on the first-run sheet. The site reads `?fuel=`.
+    /// The start page on the app's fuel. The site takes a bare `?fuel=` as the user's choice.
     nonisolated static func firstRunURL(fuel: FuelType) -> URL {
         var components = URLComponents(url: AppConfig.baseURL, resolvingAgainstBaseURL: false)!
         components.path = "/"
@@ -129,7 +157,31 @@ final class ShellModel: NSObject, ObservableObject {
         guard onStartPage else { return }
         onStartPage = false
         let url = Self.firstRunURL(fuel: fuel)
+        settings.webFuel = fuel
         if error != nil { pendingURL = url } else { load(url) }
+    }
+
+    /// Reloads the map on the app's fuel when it changed outside the map: the settings sheet, a
+    /// Shortcut or the widget. Behind the error screen it becomes what Retry loads.
+    func syncFuel() {
+        guard fuelNeedsSync else { return }
+        onStartPage = false
+        let url = markFuelSynced()
+        if error != nil { pendingURL = url } else { load(url) }
+    }
+
+    /// True when the user has a fuel and the page last had another one (or none yet).
+    private var fuelNeedsSync: Bool {
+        #if DEBUG
+        if testHookOwnsPage { return false }
+        #endif
+        return settings.hasChosenFuel && settings.fuel != settings.webFuel
+    }
+
+    /// Records the app's fuel as the page's and returns the start page on it.
+    private func markFuelSynced() -> URL {
+        settings.webFuel = settings.fuel
+        return Self.firstRunURL(fuel: settings.fuel)
     }
 
     func load(_ url: URL) {

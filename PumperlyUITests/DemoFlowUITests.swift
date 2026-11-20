@@ -208,8 +208,8 @@ final class DemoFlowUITests: XCTestCase {
         step("quick actions: widget fuel")
         icon.press(forDuration: 1.5)
         pause(2)
-        let widgetFuel = springboard.buttons["Widget fuel"]
-        XCTAssertTrue(widgetFuel.waitForExistence(timeout: 5), springboardDump("Widget fuel quick action"))
+        let widgetFuel = springboard.buttons["Your fuel"]
+        XCTAssertTrue(widgetFuel.waitForExistence(timeout: 5), springboardDump("Your fuel quick action"))
         widgetFuel.tap()
         step("widget fuel settings")
         let diesel = app.buttons["settings.fuel.B7"]

@@ -69,10 +69,10 @@ final class ShellUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["settings.intro"].exists)
         XCTAssertFalse(app.buttons["settings.done"].exists)
 
-        // Opened again later (widget, icon menu), the sheet is about the widget and shows the choice.
+        // Opened again later (widget, icon menu), the sheet is titled for the user's fuel and shows the choice.
         app.open(URL(string: "pumperly://settings")!)
         XCTAssertTrue(app.buttons["settings.done"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.navigationBars.staticTexts["Widget fuel"].exists)
+        XCTAssertTrue(app.navigationBars.staticTexts["Your fuel"].exists)
         XCTAssertTrue(waitUntilSelected(app.buttons["settings.fuel.B7_PREMIUM"]))
         XCTAssertTrue(app.buttons["settings.done"].isEnabled)
     }

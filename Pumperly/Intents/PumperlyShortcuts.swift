@@ -18,8 +18,8 @@ struct PumperlyShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: SetWidgetFuelIntent(),
             phrases: [
-                "Set the widget fuel in \(.applicationName)",
-                "Change the \(.applicationName) widget fuel",
+                "Set my fuel in \(.applicationName)",
+                "Change my \(.applicationName) fuel",
             ],
             shortTitle: LocalizedStringResource("shortcut.setFuel", table: "Intents"),
             systemImageName: "slider.horizontal.3")

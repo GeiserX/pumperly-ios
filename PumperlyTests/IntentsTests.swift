@@ -149,7 +149,9 @@ final class IntentsTests: XCTestCase {
         XCTAssertTrue(SharedSettings(defaults: defaults).hasChosenFuel)
         XCTAssertEqual(reloads, 1)
         XCTAssertEqual(SetWidgetFuelIntent.dialog(for: .lpg, bundle: try englishBundle),
-                       "The widget now shows \(FuelType.lpg.label).")
+                       "Pumperly now uses \(FuelType.lpg.label).")
+        XCTAssertEqual(SetWidgetFuelIntent.dialog(for: .e5, bundle: try englishBundle),
+                       "Pumperly now uses \(FuelType.e5.label).")
     }
 
     // MARK: Strings

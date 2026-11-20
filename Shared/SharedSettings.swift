@@ -1,9 +1,11 @@
 import Foundation
 
-/// Settings the app writes and the widget reads, stored in the App Group.
+/// Settings the app writes and the widget reads, stored in the App Group. `fuel` is the one fuel
+/// the map, the widget, Siri and the watch use.
 struct SharedSettings {
     static let fuelKey = "widget.fuel"
     static let fuelChosenKey = "widget.fuelChosen"
+    static let webFuelKey = "web.fuel"
     static let latitudeKey = "location.latitude"
     static let longitudeKey = "location.longitude"
     static let locationDateKey = "location.date"
@@ -22,6 +24,13 @@ struct SharedSettings {
         nonmutating set { defaults.set(newValue.rawValue, forKey: Self.fuelKey) }
     }
 
+    /// The fuel the map page last had, so the shell knows when `fuel` changed elsewhere (the sheet,
+    /// a Shortcut, the widget) and the map must reload on it. Nil until the shell first sends one.
+    var webFuel: FuelType? {
+        get { defaults.string(forKey: Self.webFuelKey).flatMap(FuelType.init(rawValue:)) }
+        nonmutating set { defaults.set(newValue?.rawValue, forKey: Self.webFuelKey) }
+    }
+
     /// False until the user has confirmed a fuel once; the app opens its settings on first launch.
     var hasChosenFuel: Bool {
         get { defaults.bool(forKey: Self.fuelChosenKey) }
@@ -33,7 +42,7 @@ struct SharedSettings {
     }
 
     func reset() {
-        for key in [Self.fuelKey, Self.fuelChosenKey, Self.latitudeKey, Self.longitudeKey, Self.locationDateKey] {
+        for key in [Self.fuelKey, Self.fuelChosenKey, Self.webFuelKey, Self.latitudeKey, Self.longitudeKey, Self.locationDateKey] {
             defaults.removeObject(forKey: key)
         }
     }

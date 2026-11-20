@@ -45,9 +45,9 @@
 "settings.open" = "Settings";
 "settings.title" = "Settings";
 "settings.title.firstRun" = "Your fuel";
-"settings.fuel" = "Widget fuel";
-"settings.fuel.footer" = "The Cheapest nearby widget shows the stations near you with the price of this fuel.";
-"settings.intro" = "Choose the fuel you use. The map opens on its prices, and the Cheapest nearby widget on your Home Screen shows it too. Later you can change the map's fuel at the top of the map, and the widget's from the widget or by holding the app icon.";
+"settings.fuel" = "Your fuel";
+"settings.fuel.footer" = "The map, the widget, Siri and the watch use this fuel. You can also change it at the top of the map.";
+"settings.intro" = "Choose the fuel you use. The map opens on its prices, and the Cheapest nearby widget on your Home Screen shows it too. Later you can change it at the top of the map.";
 "settings.done" = "Done";
 
 /* Web dialogs */
