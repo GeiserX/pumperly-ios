@@ -15,7 +15,8 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
     private let manager = CLLocationManager()
     private let settings = SharedSettings()
     private let prefetcher = NearbyPrefetcher()
-    private var oneShotIDs: [Int] = []
+    /// Pending one-shot requests: id -> the page's maximumAge in milliseconds.
+    private var oneShotIDs: [Int: Double] = [:]
     private var watchIDs: Set<Int> = []
 
     static var userScript: WKUserScript {
@@ -40,21 +41,31 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
           }
           var callbacks = {}, nextId = 1;
           function post(message) { window.webkit.messageHandlers.\(handlerName).postMessage(message); }
+          function finish(id) {
+            var cb = callbacks[id]; if (!cb) return null;
+            if (cb.once) { delete callbacks[id]; clearTimeout(cb.timer); }
+            return cb;
+          }
           window.__pumperlyGeo = {
             resolve: function (id, position) {
-              var cb = callbacks[id]; if (!cb) return;
-              if (cb.once) delete callbacks[id];
-              cb.ok(position);
+              var cb = finish(id); if (cb) cb.ok(position);
             },
             reject: function (id, code, message) {
-              var cb = callbacks[id]; if (!cb) return;
-              if (cb.once) delete callbacks[id];
-              if (cb.fail) cb.fail(failure(code, message));
+              var cb = finish(id); if (cb && cb.fail) cb.fail(failure(code, message));
             }
           };
-          geo.getCurrentPosition = function (ok, fail) {
-            var id = nextId++; callbacks[id] = { ok: ok, fail: fail, once: true };
-            post({ op: "get", id: id });
+          function number(value) { return typeof value === "number" && value === value ? value : null; }
+          geo.getCurrentPosition = function (ok, fail, options) {
+            var id = nextId++; var cb = callbacks[id] = { ok: ok, fail: fail, once: true };
+            var timeout = number(options && options.timeout);
+            if (timeout !== null && isFinite(timeout)) {
+              cb.timer = setTimeout(function () {
+                window.__pumperlyGeo.reject(id, 3, "Timeout expired");
+              }, Math.max(0, timeout));
+            }
+            var maximumAge = number(options && options.maximumAge);
+            maximumAge = maximumAge === null || maximumAge < 0 ? 0 : Math.min(maximumAge, Number.MAX_SAFE_INTEGER);
+            post({ op: "get", id: id, maximumAge: maximumAge });
           };
           geo.watchPosition = function (ok, fail) {
             var id = nextId++; callbacks[id] = { ok: ok, fail: fail, once: false };
@@ -88,7 +99,7 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
             return
         }
         switch op {
-        case "get": oneShotIDs.append(id)
+        case "get": oneShotIDs[id] = (body["maximumAge"] as? NSNumber)?.doubleValue ?? 0
         case "watch": watchIDs.insert(id)
         case "clear":
             watchIDs.remove(id)
@@ -113,19 +124,44 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
         case .denied, .restricted:
             settings.clearLocation()
             StationCache.appGroup?.clear()
-            reject(oneShotIDs + watchIDs, code: 1, message: "Location permission denied")
+            reject(Array(oneShotIDs.keys) + watchIDs, code: 1, message: "Location permission denied")
             oneShotIDs.removeAll()
             watchIDs.removeAll()
         default:
+            answerFromCachedFix()
             if !oneShotIDs.isEmpty { manager.requestLocation() }
             if !watchIDs.isEmpty { manager.startUpdatingLocation() }
         }
+    }
+
+    /// A stationary device may never send another update while a watch runs, so a one-shot
+    /// whose maximumAge allows the last known fix gets that fix at once.
+    private func answerFromCachedFix() {
+        guard let cached = manager.location else { return }
+        let now = Date()
+        let ids = oneShotIDs.filter { Self.cachedFixUsable(location: cached, maximumAgeMs: $0.value, now: now) }.map(\.key)
+        guard !ids.isEmpty else { return }
+        for id in ids { oneShotIDs[id] = nil }
+        resolve(ids, with: cached)
+    }
+
+    /// True when a fix is valid and no older than the page's maximumAge (milliseconds).
+    nonisolated static func cachedFixUsable(location: CLLocation, maximumAgeMs: Double, now: Date) -> Bool {
+        guard maximumAgeMs > 0, location.horizontalAccuracy >= 0 else { return false }
+        return now.timeIntervalSince(location.timestamp) * 1000 <= maximumAgeMs
     }
 
     private func deliver(_ location: CLLocation) {
         let c = location.coordinate
         settings.saveLocation(latitude: c.latitude, longitude: c.longitude)
         prefetcher.positionDelivered(location)
+        let ids = Array(oneShotIDs.keys) + watchIDs
+        oneShotIDs.removeAll()
+        resolve(ids, with: location)
+    }
+
+    private func resolve(_ ids: [Int], with location: CLLocation) {
+        let c = location.coordinate
         let position: [String: Any] = [
             "coords": [
                 "latitude": c.latitude,
@@ -140,8 +176,6 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: position),
               let json = String(data: data, encoding: .utf8) else { return }
-        let ids = oneShotIDs + watchIDs
-        oneShotIDs.removeAll()
         for id in ids {
             webView?.evaluateJavaScript("window.__pumperlyGeo && window.__pumperlyGeo.resolve(\(id), \(json))")
         }
@@ -179,7 +213,7 @@ final class GeolocationBridge: NSObject, WKScriptMessageHandler, CLLocationManag
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         let denied = (error as? CLError)?.code == .denied
         MainActor.assumeIsolated {
-            reject(oneShotIDs, code: denied ? 1 : 2, message: "Position unavailable")
+            reject(oneShotIDs.keys, code: denied ? 1 : 2, message: "Position unavailable")
             oneShotIDs.removeAll()
         }
     }
